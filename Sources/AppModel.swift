@@ -178,13 +178,13 @@ final class AppModel: ObservableObject {
         targetAngle = newAngle
         if wakeState.openingPending {
             guard desktopSessionAvailable else { return }
-            if wakeState.consumeOpening() && permission && !capturing && !effectVisible {
+            if wakeState.consumeOpening(at: newAngle, startAngle: settings.startAngle) && permission && !capturing && !effectVisible {
                 captureAndShow(purpose: .opening)
             }
             return
         }
         if newAngle >= settings.startAngle {
-            if capturePurpose == .physical { dismissEffect() }
+            if capturePurpose == .physical || capturePurpose == .opening { dismissEffect() }
             if !effectVisible { return }
         } else if armed && permission && !capturing && !effectVisible {
             captureAndShow(purpose: .physical)
@@ -292,14 +292,18 @@ final class AppModel: ObservableObject {
             do {
                 let (image, screen) = try await captureDesktop()
                 guard ticket == generation, enabled, !suspended, desktopSessionAvailable else { return }
-                if purpose == .physical && (angle ?? settings.startAngle) >= settings.startAngle { return }
+                if !demo && (angle ?? settings.startAngle) >= settings.startAngle { return }
                 let textures = try gpu.textures(for: image)
                 overlayRenderer.textures = textures
-                displayAngle = purpose == .opening ? settings.endAngle : settings.startAngle
+                displayAngle = purpose == .opening ? (angle ?? settings.startAngle) : settings.startAngle
                 targetAngle = demo ? settings.startAngle : (angle ?? settings.startAngle)
                 overlayRenderer.firstFrameReady = { [weak self] in
                     guard let self, ticket == self.generation, self.effectVisible else { return }
                     guard !self.suspended, self.desktopSessionAvailable else { self.dismissEffect(); return }
+                    // The lid may finish opening while the first frame is rendering.
+                    if !demo && (self.angle ?? self.settings.startAngle) >= self.settings.startAngle {
+                        self.dismissEffect(); return
+                    }
                     self.beginAnimation(purpose: purpose)
                 }
                 showOverlay(on: screen)
@@ -335,7 +339,7 @@ final class AppModel: ObservableObject {
         overlay = window
         effectVisible = true
         // Finish the first GPU frame while hidden, then blend into the desktop.
-        // Closing starts at identity; a wake reveal starts at the closed endpoint.
+        // Closing starts at identity; reopening uses the current physical angle.
         view.draw()
     }
 
@@ -349,20 +353,13 @@ final class AppModel: ObservableObject {
                 let now = CACurrentMediaTime()
                 let dt = min(0.05, now - self.lastFrame)
                 self.lastFrame = now
-                let elapsed = now - start
                 if purpose == .demo {
                     let phase = min(1, (now - start) / 6)
                     self.displayAngle = self.settings.startAngle - (self.settings.startAngle - self.settings.endAngle) * pow(sin(phase * .pi), 2)
                     if phase >= 1 { self.dismissEffect(); return }
                 } else {
-                    if purpose == .opening && elapsed < WakeState.openingDuration {
-                        self.displayAngle = WakeState.openingAngle(target: self.targetAngle,
-                            start: self.settings.startAngle, end: self.settings.endAngle, elapsed: elapsed)
-                    } else {
-                        self.displayAngle += (self.targetAngle - self.displayAngle) * (1 - exp(-dt / 0.09))
-                    }
-                    let revealComplete = purpose != .opening || elapsed >= WakeState.openingDuration
-                    if revealComplete && self.targetAngle >= self.settings.startAngle && self.displayAngle >= self.settings.startAngle - 0.08 {
+                    self.displayAngle += (self.targetAngle - self.displayAngle) * (1 - exp(-dt / 0.09))
+                    if self.targetAngle >= self.settings.startAngle && self.displayAngle >= self.settings.startAngle - 0.08 {
                         self.dismissEffect(); return
                     }
                 }

@@ -20,23 +20,15 @@ struct WakeState {
         if !isSuspended { closingBeforePause = false }
     }
 
-    mutating func consumeOpening() -> Bool {
+    mutating func consumeOpening(at angle: Double, startAngle: Double) -> Bool {
         guard !isSuspended else { return false }
         let pending = openingPending
         openingPending = false
-        return pending
+        return pending && angle < startAngle
     }
 
     mutating func cancelOpening() {
         closingBeforePause = false
         openingPending = false
-    }
-
-    static let openingDuration = 0.65
-
-    static func openingAngle(target: Double, start: Double, end: Double, elapsed: Double) -> Double {
-        let phase = min(1, max(0, elapsed / openingDuration))
-        let amount = phase * phase * (3 - 2 * phase)
-        return end + (min(start, max(end, target)) - end) * amount
     }
 }

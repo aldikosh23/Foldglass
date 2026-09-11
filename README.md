@@ -68,7 +68,7 @@ close the settings window to leave foldglass running in the menu bar. click the 
 
 **pause or stop:** **pause effect** pauses the current session. **quit foldglass** exits the app. quitting does not disable launch at login.
 
-**opening after sleep:** after the lid closes and the mac sleeps, the opening reveal waits for macos to wake the display and unlock the session. it does not draw over the lock screen, and the first desktop frame may appear before the animation starts. this wake behavior is implemented but still awaits confirmation through a physical close, sleep, and reopen cycle.
+**opening after sleep:** the effect can follow reopening once macos has woken the display and unlocked the desktop, provided the lid is still below the start angle. if the lid is already open by then, no delayed animation is replayed. the lock screen is not animated. reopening while the desktop remains unlocked follows the angle normally.
 
 ## privacy and limits
 

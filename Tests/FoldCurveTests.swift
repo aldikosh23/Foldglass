@@ -43,6 +43,24 @@ struct FoldCurveTests {
                      "closing must retain the gradual entry")
         let entry = FoldState.overlayOpacity(progress: 0.001, elapsed: 0.1)
         precondition(entry < 0.001, "small hinge movement must not pop in the snapshot")
+        var at60 = FoldMotion(angle: 90)
+        var at120 = FoldMotion(angle: 90)
+        for _ in 0..<60 {
+            at60.advance(toward: 30, dt: 1.0 / 60)
+            at120.advance(toward: 30, dt: 1.0 / 120)
+            at120.advance(toward: 30, dt: 1.0 / 120)
+            precondition(abs(at60.angle - at120.angle) < 0.000001,
+                         "smoothing must follow the same motion at 60 and 120 Hz")
+            precondition(at60.angle >= 30 && at60.angle <= 90,
+                         "closing toward a stationary target must not overshoot")
+        }
+        precondition(abs(at60.angle - 30) < 0.001 && abs(at60.velocity) < 0.01,
+                     "stationary motion must converge so drawing can pause")
+        var reversing = FoldMotion(angle: 90)
+        for _ in 0..<6 { reversing.advance(toward: 30, dt: 1.0 / 60) }
+        reversing.advance(toward: 90, dt: 1.0 / 120)
+        precondition(reversing.velocity < 0, "a reversed sensor target must decelerate rather than instantly flip velocity")
+        print("motion passed: refresh-rate independence, convergence, smooth reversal")
         print("fold curve passed: identity, monotonic closing, continuity, closed endpoint")
     }
 }

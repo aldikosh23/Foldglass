@@ -102,7 +102,9 @@ final class FoldRenderer: NSObject, MTKViewDelegate {
     func update(angle: Double, settings: FoldSettings) {
         self.angle = angle
         self.settings = settings
-        view?.needsDisplay = true
+        // Animated updates arrive on the display clock. Draw in that same tick
+        // instead of asking AppKit to coalesce them into a later paint cycle.
+        view?.draw()
     }
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
     func draw(in view: MTKView) {

@@ -4,7 +4,9 @@ import MetalKit
 struct MetalPreview: NSViewRepresentable {
     let renderer: FoldRenderer
     func makeNSView(context: Context) -> MTKView { renderer.makeView() }
-    func updateNSView(_ view: MTKView, context: Context) { view.needsDisplay = true }
+    // The renderer draws when its image or settings change; SwiftUI layout updates
+    // must not enqueue duplicate frames for the otherwise stationary preview.
+    func updateNSView(_ view: MTKView, context: Context) {}
 }
 
 struct SettingsView: View {

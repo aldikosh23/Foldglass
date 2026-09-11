@@ -17,6 +17,8 @@ Foldglass brings a glass animation to your MacBook's lid. Close it, and a soft b
 
 It runs in the menu bar, supports **English and Russian**, and can start quietly when you log in. English is the default language.
 
+Rendering follows the display's refresh rate, targeting **60 FPS on 60 Hz displays** and **up to 120 FPS with ProMotion**. The animation clock pauses once the lid settles and resumes when it moves, while blur textures are prepared once per snapshot. The 60 Hz path has been measured on a MacBook Air; 120 Hz hardware has not yet been tested.
+
 ## See it in motion
 
 ![Closing and opening with Foldglass](docs/assets/preview.gif)
@@ -153,6 +155,7 @@ Automated checks do not replace testing screen permission, the physical lid, log
 | `Sources/LockScreenSpace.swift` | Place the lock screen overlay with private SkyLight APIs. |
 | `Sources/LoginItem.swift` | Register background startup through `SMAppService`. |
 | `Sources/FoldCurve.swift` | Map lid angle to progress, projection, and overlay opacity. |
+| `Sources/FrameClock.swift` | Synchronize animation with the display and pause while stationary. |
 | `Sources/FoldRenderer.swift` | Prepare blur levels and render with Metal. |
 | `Resources/Fold.metal` | Stretch, blur, and dim the captured image. |
 | `Sources/SettingsView.swift` | Present the preview and settings. |

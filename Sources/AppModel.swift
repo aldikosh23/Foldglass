@@ -24,7 +24,7 @@ final class AppModel: ObservableObject {
     @Published var settings: FoldSettings {
         didSet {
             if settings.startAngle != oldValue.startAngle { dismissEffect(); wakeState.cancelOpening(); armed = false }
-            saveSettings(); refreshPreview()
+            saveSettings(); refreshPreview(); animation.resume()
         }
     }
     @Published var enabled = true { didSet { if !enabled { dismissEffect() }; wakeState.cancelOpening(); armed = false } }
@@ -51,14 +51,15 @@ final class AppModel: ObservableObject {
     private var captureTask: Task<Void, Never>?
     private enum CapturePurpose { case preview, physical, opening, demo }
     private var capturePurpose: CapturePurpose?
-    private var animation: Timer?
-    private var previewTimer: Timer?
+    private let animation = FrameClock()
+    private let previewAnimation = FrameClock()
     private var cancellables = Set<AnyCancellable>()
     private var generation = 0
     @Published private var armed = false
     private var wakeState = WakeState()
     private var suspended: Bool { wakeState.isSuspended }
     private var displayAngle: Double = 90
+    private var motion = FoldMotion(angle: 90)
     private var targetAngle: Double = 90
     private var lastFrame = CACurrentMediaTime()
     private var firstSubmittedFrame = 0
@@ -182,6 +183,7 @@ final class AppModel: ObservableObject {
             if !armed { armed = true }
             if message != nil { message = nil }
         }
+        if targetAngle != newAngle, animation.resume() { lastFrame = CACurrentMediaTime() }
         targetAngle = newAngle
         if wakeState.openingPending {
             guard captureSurface != nil else { return }
@@ -269,22 +271,18 @@ final class AppModel: ObservableObject {
 
     func playPreview() {
         stopPreview()
+        guard let screen = previewRenderer.view?.window?.screen else { return }
         playing = true
         let start = CACurrentMediaTime()
-        let timer = Timer(timeInterval: 1 / 60, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                let elapsed = CACurrentMediaTime() - start
-                let phase = min(1, elapsed / 6)
-                let amount = pow(sin(phase * .pi), 2)
-                self.previewAngle = self.settings.startAngle - (self.settings.startAngle - self.settings.endAngle) * amount
-                if phase >= 1 { self.stopPreview() }
-            }
+        previewAnimation.start(on: screen) { [weak self] now in
+            guard let self else { return }
+            let phase = min(1, (now - start) / 6)
+            let amount = pow(sin(phase * .pi), 2)
+            self.previewAngle = self.settings.startAngle - (self.settings.startAngle - self.settings.endAngle) * amount
+            if phase >= 1 { self.stopPreview() }
         }
-        previewTimer = timer
-        RunLoop.main.add(timer, forMode: .common)
     }
-    func stopPreview() { previewTimer?.invalidate(); previewTimer = nil; playing = false }
+    func stopPreview() { previewAnimation.stop(); playing = false }
     func refreshPreview() { previewRenderer.update(angle: previewAngle, settings: settings) }
 
     func demoDesktop() {
@@ -320,6 +318,7 @@ final class AppModel: ObservableObject {
                 let textures = try gpu.textures(for: image)
                 overlayRenderer.textures = textures
                 displayAngle = purpose == .opening ? (angle ?? settings.startAngle) : settings.startAngle
+                motion = FoldMotion(angle: displayAngle)
                 targetAngle = demo ? settings.startAngle : (angle ?? settings.startAngle)
                 overlayRenderer.firstFrameReady = { [weak self] in
                     guard let self, ticket == self.generation, self.effectVisible else { return }
@@ -332,7 +331,7 @@ final class AppModel: ObservableObject {
                         self.wakeState.openingStarted()
                         self.armed = true
                     }
-                    self.beginAnimation(purpose: purpose)
+                    self.beginAnimation(purpose: purpose, screen: screen)
                 }
                 try showOverlay(on: screen, surface: surface)
             } catch is CancellationError { }
@@ -380,36 +379,39 @@ final class AppModel: ObservableObject {
         view.draw()
     }
 
-    private func beginAnimation(purpose: CapturePurpose) {
+    private func beginAnimation(purpose: CapturePurpose, screen: NSScreen) {
         logger.debug("animation begin source=\(self.overlaySurface?.rawValue ?? "none", privacy: .public) angle=\(self.angle ?? -1)")
-        animation?.invalidate()
         let start = CACurrentMediaTime()
         let fadeDuration = purpose == .opening ? 0.045 : 0.22
         lastFrame = start
-        let timer = Timer(timeInterval: 1 / 60, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                guard !self.suspended, self.overlaySurface == self.captureSurface else { self.dismissEffect(); return }
-                let now = CACurrentMediaTime()
-                let dt = min(0.05, now - self.lastFrame)
-                self.lastFrame = now
-                if purpose == .demo {
-                    let phase = min(1, (now - start) / 6)
-                    self.displayAngle = self.settings.startAngle - (self.settings.startAngle - self.settings.endAngle) * pow(sin(phase * .pi), 2)
-                    if phase >= 1 { self.dismissEffect(); return }
-                } else {
-                    self.displayAngle += (self.targetAngle - self.displayAngle) * (1 - exp(-dt / 0.09))
-                    if self.targetAngle >= self.settings.startAngle && self.displayAngle >= self.settings.startAngle - 0.08 {
-                        self.dismissEffect(); return
-                    }
+        animation.start(on: screen) { [weak self] now in
+            guard let self else { return }
+            guard !self.suspended, self.overlaySurface == self.captureSurface else { self.dismissEffect(); return }
+            let dt = min(0.05, now - self.lastFrame)
+            self.lastFrame = now
+            if purpose == .demo {
+                let phase = min(1, (now - start) / 6)
+                self.displayAngle = self.settings.startAngle - (self.settings.startAngle - self.settings.endAngle) * pow(sin(phase * .pi), 2)
+                if phase >= 1 { self.dismissEffect(); return }
+            } else {
+                self.motion.advance(toward: self.targetAngle, dt: dt)
+                self.displayAngle = self.motion.angle
+                if self.targetAngle >= self.settings.startAngle && self.displayAngle >= self.settings.startAngle - 0.08 {
+                    self.dismissEffect(); return
                 }
-                let progress = FoldState.at(angle: self.displayAngle, settings: self.settings).progress
-                self.overlay?.alphaValue = FoldState.overlayOpacity(progress: progress, elapsed: now - start, fadeDuration: fadeDuration)
-                self.overlayRenderer.update(angle: self.displayAngle, settings: self.settings)
             }
+            let settled = purpose != .demo && abs(self.targetAngle - self.displayAngle) < 0.01
+                && abs(self.motion.velocity) < 0.1
+                && now - start >= fadeDuration
+            if settled {
+                self.displayAngle = self.targetAngle
+                self.motion = FoldMotion(angle: self.targetAngle)
+            }
+            let progress = FoldState.at(angle: self.displayAngle, settings: self.settings).progress
+            self.overlay?.alphaValue = FoldState.overlayOpacity(progress: progress, elapsed: now - start, fadeDuration: fadeDuration)
+            self.overlayRenderer.update(angle: self.displayAngle, settings: self.settings)
+            if settled { self.animation.pause() }
         }
-        animation = timer
-        RunLoop.main.add(timer, forMode: .common)
     }
 
     func dismissEffect(_ reason: String = #function) {
@@ -420,7 +422,7 @@ final class AppModel: ObservableObject {
         captureTask?.cancel(); captureTask = nil
         capturing = false
         capturePurpose = nil
-        animation?.invalidate(); animation = nil
+        animation.stop()
         overlay?.orderOut(nil); overlay?.close(); overlay = nil
         overlaySurface = nil
         overlayRenderer.textures = nil

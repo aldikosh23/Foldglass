@@ -35,3 +35,19 @@ struct FoldState {
         return FoldState(progress: Float(p), projection: Float(1 + (projectedHeight - 1) * settings.projection))
     }
 }
+
+// Preserve velocity between integer-degree sensor reports, including reversals.
+// The analytic critically damped step behaves equally at 60 and 120 Hz.
+struct FoldMotion {
+    var angle: Double
+    private(set) var velocity: Double = 0
+
+    mutating func advance(toward target: Double, dt: Double) {
+        let frequency = 24.0
+        let offset = angle - target
+        let change = (velocity + frequency * offset) * dt
+        let decay = exp(-frequency * dt)
+        angle = target + (offset + change) * decay
+        velocity = (velocity - frequency * change) * decay
+    }
+}

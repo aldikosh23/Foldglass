@@ -4,6 +4,13 @@ import Foundation
 struct FoldCurveTests {
     static func main() {
         let settings = FoldSettings()
+        precondition(settings.startAngle == 90, "standard start angle must remain 90 degrees")
+        precondition(FoldSettings.startAngle(forComfortAngle: 80) == 70, "lap position needs ten degrees of movement before activation")
+        precondition(FoldSettings.startAngle(forComfortAngle: 35) == 30)
+        precondition(FoldSettings.startAngle(forComfortAngle: 140) == 115)
+        let lowStart = FoldSettings(startAngle: FoldSettings.startAngleRange.lowerBound)
+        precondition(FoldState.at(angle: 30, settings: lowStart).progress == 0)
+        precondition(FoldState.at(angle: 12, settings: lowStart).progress == 1)
         let open = FoldState.at(angle: settings.startAngle + 15, settings: settings)
         precondition(open.progress == 0 && open.projection == 1, "open screen must stay unchanged")
 

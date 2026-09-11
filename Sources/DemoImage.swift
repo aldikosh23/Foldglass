@@ -2,13 +2,14 @@ import AppKit
 import CoreGraphics
 
 enum DemoImage {
-    static func make() -> CGImage {
+    static func make(language: AppLanguage = .english, bundle: Bundle = .main) -> CGImage {
+        func t(_ key: String) -> String { language.text(key, bundle: bundle) }
         let size = CGSize(width: 1600, height: 1040)
         guard let context = CGContext(data: nil, width: Int(size.width), height: Int(size.height),
                                       bitsPerComponent: 8, bytesPerRow: 0,
                                       space: CGColorSpace(name: CGColorSpace.sRGB)!,
                                       bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
-            fatalError("не удалось создать тестовый экран")
+            fatalError(t("demo_create_failed"))
         }
         NSGraphicsContext.saveGraphicsState()
         defer { NSGraphicsContext.restoreGraphicsState() }
@@ -93,37 +94,37 @@ enum DemoImage {
         glow(CGRect(x: 1170, y: 40, width: 540, height: 840), color(0xCEAA9C, 0.4))
 
         round(CGRect(x: 0, y: 1006, width: 1600, height: 34), 0, color(0x101820, 0.28))
-        text("studio", 27, 1013, 14, .white, .bold)
-        text("file     edit     view     window", 103, 1013, 14, color(0xFFFFFF, 0.88))
-        text("fri 11 sep    16:42", 1410, 1013, 13, color(0xFFFFFF, 0.95), .medium)
+        text(t("demo_studio"), 27, 1013, 14, .white, .bold)
+        text(t("demo_menu"), 103, 1013, 14, color(0xFFFFFF, 0.88))
+        text(t("demo_date"), 1410, 1013, 13, color(0xFFFFFF, 0.95), .medium)
 
         let ink = color(0x202633)
         let muted = color(0x7D8490)
         let panel = CGRect(x: 102, y: 268, width: 904, height: 596)
         window(panel, color(0xF2F0EB))
         traffic(126, 833)
-        text("field notes", 210, 828, 15, ink, .semibold)
-        text("local workspace", 850, 829, 12, muted)
+        text(t("demo_notes"), 210, 828, 15, ink, .semibold)
+        text(t("demo_workspace"), 850, 829, 12, muted)
         line(102, 810, 1006, 810, color(0xDADAD7))
         round(CGRect(x: 103, y: 289, width: 194, height: 520), 0, color(0xE9E8E3))
-        text("library", 125, 777, 12, muted, .semibold)
-        let navigation = ["overview", "materials", "motion studies", "saved" ]
+        text(t("demo_library"), 125, 777, 12, muted, .semibold)
+        let navigation = [t("demo_overview"), t("demo_materials"), t("demo_motion"), t("demo_saved") ]
         for (index, label) in navigation.enumerated() {
             let y = CGFloat(734 - index * 42)
             if index == 1 { round(CGRect(x: 113, y: y - 6, width: 172, height: 33), 7, color(0xD8DCD8)) }
             round(CGRect(x: 128, y: y + 4, width: 11, height: 11), 3, color(index == 1 ? 0x4F706B : 0xA4A9A5))
             text(label, 150, y, 13, index == 1 ? ink : muted, index == 1 ? .medium : .regular)
         }
-        text("collections", 125, 524, 12, muted, .semibold)
-        text("01    light & shadow", 128, 485, 12, ink)
-        text("02    soft geometry", 128, 449, 12, ink)
-        text("03    refraction", 128, 413, 12, ink)
-        text("8 studies", 126, 300, 12, muted, .medium, mono: true)
+        text(t("demo_collections"), 125, 524, 12, muted, .semibold)
+        text(t("demo_light"), 128, 485, 12, ink)
+        text(t("demo_geometry_item"), 128, 449, 12, ink)
+        text(t("demo_refraction"), 128, 413, 12, ink)
+        text(t("demo_count"), 126, 300, 12, muted, .medium, mono: true)
 
-        text("soft geometry", 327, 745, 34, ink, .semibold)
-        text("an exploration of light, surface and movement.", 329, 716, 14, muted)
+        text(t("demo_geometry"), 327, 745, 34, ink, .semibold)
+        text(t("demo_exploration"), 329, 716, 14, muted)
         round(CGRect(x: 864, y: 750, width: 112, height: 31), 15, color(0x284B48))
-        text("new study  +", 880, 758, 12, .white, .medium)
+        text(t("demo_new"), 880, 758, 12, .white, .medium)
 
         for index in 0..<3 {
             let x = CGFloat(329 + index * 222)
@@ -137,29 +138,29 @@ enum DemoImage {
             loop.stroke()
             ellipse(CGRect(x: x + 66, y: 483, width: 72, height: 144), color(0x16202C, 0.2))
             NSGraphicsContext.restoreGraphicsState()
-            text(["sand / 01", "tide / 02", "dusk / 03"][index], x + 2, 424, 15, ink, .medium)
-            text(["warm diffusion", "fluid structure", "quiet contrast"][index], x + 2, 402, 12, muted)
+            text([t("demo_sand"), t("demo_tide"), t("demo_dusk")][index], x + 2, 424, 15, ink, .medium)
+            text([t("demo_warm"), t("demo_fluid"), t("demo_quiet")][index], x + 2, 402, 12, muted)
         }
         line(329, 375, 976, 375, color(0xDADAD7))
-        text("recent activity", 329, 347, 12, muted, .medium)
-        text("material study updated", 329, 315, 13, ink)
-        text("just now", 907, 315, 12, muted)
+        text(t("demo_activity"), 329, 347, 12, muted, .medium)
+        text(t("demo_updated"), 329, 315, 13, ink)
+        text(t("demo_now"), 907, 315, 12, muted)
 
         let notes = CGRect(x: 1070, y: 369, width: 401, height: 461)
         window(notes, color(0x192631, 0.96))
         traffic(1092, 800)
-        text("motion / review", 1172, 795, 14, color(0xDCE5E6), .medium)
+        text(t("demo_review"), 1172, 795, 14, color(0xDCE5E6), .medium)
         line(1070, 777, 1471, 777, color(0x50616B, 0.5))
-        text("make it feel", 1100, 708, 31, color(0xF0EEE3), .semibold)
-        text("physical.", 1100, 670, 31, color(0xDAC6A7), .semibold)
-        text("01 / material response", 1102, 623, 12, color(0x96ABB2), .regular, mono: true)
-        for (index, label) in ["light follows the surface", "edges stay continuous", "motion remains reversible"].enumerated() {
+        text(t("demo_make"), 1100, 708, 31, color(0xF0EEE3), .semibold)
+        text(t("demo_physical"), 1100, 670, 31, color(0xDAC6A7), .semibold)
+        text(t("demo_response"), 1102, 623, 12, color(0x96ABB2), .regular, mono: true)
+        for (index, label) in [t("demo_follows"), t("demo_edges"), t("demo_reverse")].enumerated() {
             let y = CGFloat(571 - index * 34)
             round(CGRect(x: 1103, y: y + 3, width: 13, height: 13), 4, color(0x799C9B))
             text(label, 1129, y, 14, color(0xD4DEDD))
         }
         line(1102, 461, 1439, 461, color(0x4B626B, 0.65))
-        text("curve", 1103, 428, 11, color(0x91A5AD), .medium, mono: true)
+        text(t("demo_curve"), 1103, 428, 11, color(0x91A5AD), .medium, mono: true)
         let curve = NSBezierPath()
         curve.move(to: CGPoint(x: 1180, y: 410))
         curve.curve(to: CGPoint(x: 1434, y: 446), controlPoint1: CGPoint(x: 1315, y: 410), controlPoint2: CGPoint(x: 1268, y: 446))
@@ -171,9 +172,9 @@ enum DemoImage {
 
         window(CGRect(x: 1120, y: 181, width: 311, height: 131), color(0xF0E9DC, 0.94))
         text("11", 1146, 220, 58, ink, .light)
-        text("september", 1240, 257, 16, ink, .medium)
-        text("friday", 1240, 232, 13, muted)
-        text("space to think.", 1240, 206, 12, muted)
+        text(t("demo_september"), 1240, 257, 16, ink, .medium)
+        text(t("demo_friday"), 1240, 232, 13, muted)
+        text(t("demo_space"), 1240, 206, 12, muted)
 
         round(CGRect(x: 478, y: 34, width: 643, height: 85), 25, color(0xE7EBF0, 0.28))
         let dockColors: [UInt32] = [0x4589CE, 0x5D677B, 0xE9D9A7, 0x67A298, 0xCB8275, 0xAF90B4, 0x758DA7, 0xDED6CC]
@@ -202,7 +203,7 @@ enum DemoImage {
             }
         }
 
-        guard let image = context.makeImage() else { fatalError("не удалось отрисовать тестовый экран") }
+        guard let image = context.makeImage() else { fatalError(t("demo_render_failed")) }
         return image
     }
 }

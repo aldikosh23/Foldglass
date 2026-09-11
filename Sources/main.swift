@@ -13,7 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let backgroundLaunch = LaunchContext.isLoginItem(NSAppleEventManager.shared().currentAppleEvent)
         do {
             let gpu = try FoldGPU()
-            let demo = try gpu.textures(for: DemoImage.make())
+            let demo = try gpu.textures(for: DemoImage.make(language: AppLanguage.load()))
             model = AppModel(gpu: gpu, demo: demo)
             let host = NSHostingController(rootView: SettingsView(model: model))
             window = NSWindow(contentViewController: host)
@@ -29,12 +29,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             statusItem.button?.image = NSImage(systemSymbolName: "laptopcomputer", accessibilityDescription: "foldglass")
             statusItem.button?.toolTip = "foldglass"
             model.$enabled.sink { [weak self] _ in DispatchQueue.main.async { self?.updateMenu() } }.store(in: &subscriptions)
+            model.$language.dropFirst().sink { [weak self] _ in
+                DispatchQueue.main.async { self?.updateMenu() }
+            }.store(in: &subscriptions)
             updateMenu()
             if !backgroundLaunch { showSettings() }
         } catch {
             let alert = NSAlert()
-            alert.messageText = "foldglass не запустился"
-            alert.informativeText = error.localizedDescription
+            alert.messageText = AppLanguage.load().text("launch_failed")
+            alert.informativeText = AppMessage.preserving(error).text(in: AppLanguage.load())
+            alert.addButton(withTitle: AppLanguage.load().text("close"))
             alert.runModal()
             NSApp.terminate(nil)
         }
@@ -45,14 +49,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         title.isEnabled = false
         menu.addItem(title)
         menu.addItem(NSMenuItem.separator())
-        let toggle = NSMenuItem(title: model.enabled ? "приостановить эффект" : "включить эффект", action: #selector(toggleEffect), keyEquivalent: "")
+        let toggle = NSMenuItem(title: model.enabled ? model.text("pause_effect") : model.text("enable_effect"), action: #selector(toggleEffect), keyEquivalent: "")
         toggle.target = self; menu.addItem(toggle)
-        let settings = NSMenuItem(title: "настройки...", action: #selector(showSettings), keyEquivalent: ",")
+        let settings = NSMenuItem(title: model.text("settings"), action: #selector(showSettings), keyEquivalent: ",")
         settings.target = self; menu.addItem(settings)
-        let demo = NSMenuItem(title: "демо на экране", action: #selector(demo), keyEquivalent: "d")
+        let demo = NSMenuItem(title: model.text("desktop_demo"), action: #selector(demo), keyEquivalent: "d")
         demo.target = self; menu.addItem(demo)
         menu.addItem(NSMenuItem.separator())
-        let quit = NSMenuItem(title: "завершить foldglass", action: #selector(quit), keyEquivalent: "q")
+        let quit = NSMenuItem(title: model.text("quit"), action: #selector(quit), keyEquivalent: "q")
         quit.target = self; menu.addItem(quit)
         statusItem.menu = menu
         let main = NSMenu()

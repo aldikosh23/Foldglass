@@ -13,7 +13,7 @@ enum LaunchContext {
 @MainActor
 final class LoginItem: ObservableObject {
     @Published private(set) var status = SMAppService.mainApp.status
-    @Published private(set) var error: String?
+    @Published private(set) var error: AppMessage?
 
     var isEnabled: Bool { status == .enabled || status == .requiresApproval }
 
@@ -30,7 +30,7 @@ final class LoginItem: ObservableObject {
                 try SMAppService.mainApp.unregister()
             }
         } catch {
-            self.error = "не удалось изменить автозапуск: \(error.localizedDescription)"
+            self.error = AppMessage(key: "login_failed", detail: error.localizedDescription)
         }
         refresh()
     }

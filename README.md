@@ -6,7 +6,7 @@ a native macbook menu bar app that turns closing the lid into a smooth glass eff
 
 ![foldglass, a native folding effect for macbook](docs/assets/hero.png)
 
-[download v1.1.0](https://github.com/aldikosh23/Foldglass/releases/tag/v1.1.0) · [russian guide](docs/README.ru.md) · [build from source](#build-from-source) · [report an issue](https://github.com/aldikosh23/Foldglass/issues)
+[download v1.2.0](https://github.com/aldikosh23/Foldglass/releases/tag/v1.2.0) · [russian guide](docs/README.ru.md) · [build from source](#build-from-source) · [report an issue](https://github.com/aldikosh23/Foldglass/issues)
 
 | platform | implementation | license |
 | --- | --- | --- |
@@ -23,14 +23,13 @@ demo scene, rendered with the app's shader. this is a synthetic desktop, not a r
 - adjusts the starting angle, frosted glass, dimming, and perspective stretch.
 - runs in the menu bar, with optional background launch at login.
 - includes an in-window preview that needs no screen recording permission.
+- supports english and russian, with english selected by default.
 
 an independent visual recreation inspired by the iphone duo folding animation. this is not apple's original effect or an apple product.
 
 ## install
 
-the app interface is currently in russian. control names in this guide are english translations; the [russian guide](docs/README.ru.md) uses the exact labels shown in the app.
-
-1. download [Foldglass-v1.1.0-macos-arm64.zip](https://github.com/aldikosh23/Foldglass/releases/download/v1.1.0/Foldglass-v1.1.0-macos-arm64.zip), unzip it, and move `Foldglass.app` into **applications** before opening it.
+1. download [Foldglass-v1.2.0-macos-arm64.zip](https://github.com/aldikosh23/Foldglass/releases/download/v1.2.0/Foldglass-v1.2.0-macos-arm64.zip), unzip it, and move `Foldglass.app` into **applications** before opening it.
 2. open the app. the release is ad hoc signed and **not notarized**. if macos blocks it and you trust this download, open **system settings > privacy & security > open anyway**, then confirm. see [apple's explanation](https://support.apple.com/en-us/102445).
 3. click **grant screen access** and enable foldglass in the screen recording section of privacy & security. accept an app restart if macos requests it.
 4. open the lid past **92°**, then slowly lower it below **90°**. the effect should follow the lid and clear when it opens again.
@@ -52,17 +51,24 @@ close the settings window to leave foldglass running in the menu bar. click the 
 | play | plays a six-second animation inside the preview |
 | desktop demo | plays the effect on the built-in display for six seconds |
 | refresh snapshot | replaces the preview image with a fresh desktop snapshot |
-| start angle | sets the angle below which the effect starts |
+| start angle | sets the activation angle from 30° to 115°; default 90° |
+| use current lid position | sets the activation angle 10° below the current lid angle, within 30-115° |
 | frosted glass | controls blur strength |
 | dimming | controls how quickly the screen fades |
 | stretch | controls perspective compensation around the hinge |
-| reset effect | restores the effect settings |
+| reset effect | restores the effect settings, including the 90° start angle |
+
+**working with a tilted screen:** if you use your macbook on your lap, click **use current lid position** at your comfortable viewing angle. small tilts will then stay above the activation threshold. for example, a current angle of 80° sets the start to 70° and the rearm angle to 72°.
+
+**language:** english is the default, regardless of your macos language. use the **language** selector in settings to choose **english** or **русский**. the interface updates immediately and remembers your choice after restarting. this guide uses the english control names.
 
 **cancel:** click to dismiss the effect. escape also works when macos delivers the key event to the app. after cancellation, raise the lid at least 2° above the configured starting angle to rearm it. the default rearm angle is 92°.
 
 **launch at login:** turn on **launch at login** in settings. subsequent login launches stay in the background with a menu bar icon and no settings window. startup is opt-in and uses `SMAppService`. if macos requests approval, click **allow in system settings** and allow foldglass. disable startup using the same toggle or **system settings > general > login items & extensions**. keep the installed app in its original location while this is enabled.
 
 **pause or stop:** **pause effect** pauses the current session. **quit foldglass** exits the app. quitting does not disable launch at login.
+
+**opening after sleep:** after the lid closes and the mac sleeps, the opening reveal waits for macos to wake the display and unlock the session. it does not draw over the lock screen, and the first desktop frame may appear before the animation starts. this wake behavior is implemented but still awaits confirmation through a physical close, sleep, and reopen cycle.
 
 ## privacy and limits
 

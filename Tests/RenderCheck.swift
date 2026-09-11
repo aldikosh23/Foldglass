@@ -9,7 +9,7 @@ struct RenderCheck {
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         let gpu = try FoldGPU(shaderURL: root.appendingPathComponent("Resources/Fold.metal"))
         let begin = CACurrentMediaTime()
-        let textures = try gpu.textures(for: DemoImage.make())
+        let textures = try gpu.textures(for: DemoImage.make(bundle: Bundle(path: root.appendingPathComponent("Resources").path)!))
         print(String(format: "snapshot preparation: %.1f ms", (CACurrentMediaTime() - begin) * 1000))
         let width = 2560, height = 1664
         let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: width, height: height, mipmapped: false)

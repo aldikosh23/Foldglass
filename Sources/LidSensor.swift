@@ -6,7 +6,7 @@ import IOKit.hid
 @MainActor
 final class LidSensor: ObservableObject {
     @Published private(set) var angle: Double?
-    @Published private(set) var error: String?
+    @Published private(set) var error: AppMessage?
     var onAngle: ((Double) -> Void)?
 
     private var worker: LidSensorWorker?
@@ -27,7 +27,7 @@ final class LidSensor: ObservableObject {
                     self.error = nil
                     self.onAngle?(value)
                 case .failure(let failure):
-                    self.error = failure.message
+                    self.error = failure
                     self.angle = nil
                     self.worker = nil
                 }
@@ -49,21 +49,17 @@ final class LidSensor: ObservableObject {
     }
 }
 
-private struct LidSensorFailure: Error {
-    let message: String
-}
-
 // Device ownership and every HID operation stay on this serial queue.
 private final class LidSensorWorker {
     private let queue = DispatchQueue(label: "app.foldglass.lid-sensor", qos: .userInteractive)
-    private let deliver: (Result<Double, LidSensorFailure>) -> Void
+    private let deliver: (Result<Double, AppMessage>) -> Void
     private var manager: IOHIDManager?
     private var device: IOHIDDevice?
     private var timer: DispatchSourceTimer?
     private var report = [UInt8](repeating: 0, count: 8)
     private let options = IOOptionBits(kIOHIDOptionsTypeNone)
 
-    init(deliver: @escaping (Result<Double, LidSensorFailure>) -> Void) {
+    init(deliver: @escaping (Result<Double, AppMessage>) -> Void) {
         self.deliver = deliver
     }
 
@@ -87,17 +83,17 @@ private final class LidSensorWorker {
         IOHIDManagerSetDeviceMatching(newManager, matching as CFDictionary)
         let managerStatus = IOHIDManagerOpen(newManager, options)
         guard managerStatus == kIOReturnSuccess else {
-            fail("не удалось открыть HID", code: managerStatus)
+            fail("hid_open_failed", code: managerStatus)
             return
         }
         guard let devices = IOHIDManagerCopyDevices(newManager) as? Set<IOHIDDevice>,
               let foundDevice = devices.first else {
-            fail("датчик угла крышки не найден")
+            fail("sensor_missing")
             return
         }
         let deviceStatus = IOHIDDeviceOpen(foundDevice, options)
         guard deviceStatus == kIOReturnSuccess else {
-            fail("не удалось открыть датчик крышки", code: deviceStatus)
+            fail("sensor_open_failed", code: deviceStatus)
             return
         }
         device = foundDevice
@@ -113,25 +109,25 @@ private final class LidSensorWorker {
         var length = report.count
         let status = IOHIDDeviceGetReport(device, kIOHIDReportTypeFeature, 1, &report, &length)
         guard status == kIOReturnSuccess else {
-            fail("не удалось прочитать угол крышки", code: status)
+            fail("sensor_read_failed", code: status)
             return
         }
         guard length == 3, report[0] == 1 else {
-            fail("датчик крышки вернул неизвестный формат данных")
+            fail("sensor_format")
             return
         }
         let value = UInt16(report[1]) | (UInt16(report[2]) << 8)
         guard value <= 360 else {
-            fail("датчик крышки вернул недопустимый угол: \(value)")
+            fail("sensor_angle", arguments: [String(value)])
             return
         }
         deliver(.success(Double(value)))
     }
 
-    private func fail(_ message: String, code: IOReturn? = nil) {
-        let detail = code.map { String(format: " (IOKit 0x%08x)", $0) } ?? ""
+    private func fail(_ key: String, arguments: [String] = [], code: IOReturn? = nil) {
+        let detail = code.map { String(format: "IOKit 0x%08x", $0) }
         close()
-        deliver(.failure(LidSensorFailure(message: message + detail)))
+        deliver(.failure(AppMessage(key: key, arguments: arguments, detail: detail)))
     }
 
     private func close() {

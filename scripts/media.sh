@@ -7,6 +7,7 @@ mkdir -p "$media_dir/frames"
 swiftc -swift-version 5 -O -target arm64-apple-macos14.0 \
   "$project_dir/Tools/ExportMedia.swift" \
   "$project_dir/Sources/FoldCurve.swift" \
+  "$project_dir/Sources/Localization.swift" \
   "$project_dir/Sources/FoldRenderer.swift" \
   "$project_dir/Sources/DemoImage.swift" \
   -framework AppKit -framework Metal -framework MetalKit -framework MetalPerformanceShaders \

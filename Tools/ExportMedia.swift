@@ -16,7 +16,7 @@ struct ExportMedia {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         }
         let gpu = try FoldGPU(shaderURL: root.appendingPathComponent("Resources/Fold.metal"))
-        let textures = try gpu.textures(for: DemoImage.make())
+        let textures = try gpu.textures(for: DemoImage.make(bundle: Bundle(path: root.appendingPathComponent("Resources").path)!))
         let renderer = ShaderFrames(gpu: gpu, textures: textures)
 
         func color(_ hex: UInt32, alpha: CGFloat = 1) -> NSColor {

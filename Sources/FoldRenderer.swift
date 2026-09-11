@@ -19,12 +19,12 @@ final class FoldGPU {
 
     init(shaderURL: URL? = Bundle.main.url(forResource: "Fold", withExtension: "metal")) throws {
         guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue() else {
-            throw FoldError.message("не удалось запустить metal на этом mac")
+            throw AppMessage(key: "metal_unavailable")
         }
         self.device = device
         self.queue = queue
         guard let shaderURL else {
-            throw FoldError.message("в приложении отсутствует Fold.metal. запусти build.sh повторно")
+            throw AppMessage(key: "shader_missing")
         }
         let library = try device.makeLibrary(source: String(contentsOf: shaderURL, encoding: .utf8), options: nil)
         let descriptor = MTLRenderPipelineDescriptor()
@@ -42,10 +42,10 @@ final class FoldGPU {
         func texture() throws -> MTLTexture {
             let d = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba8Unorm, width: width, height: height, mipmapped: false)
             d.usage = [.shaderRead, .shaderWrite]
-            guard let t = device.makeTexture(descriptor: d) else { throw FoldError.message("недостаточно памяти для размытия") }
+            guard let t = device.makeTexture(descriptor: d) else { throw AppMessage(key: "blur_memory") }
             return t
         }
-        guard let command = queue.makeCommandBuffer() else { throw FoldError.message("metal не создал командный буфер") }
+        guard let command = queue.makeCommandBuffer() else { throw AppMessage(key: "metal_buffer") }
         let reduced = try texture()
         MPSImageLanczosScale(device: device).encode(commandBuffer: command, sourceTexture: source, destinationTexture: reduced)
         var levels = [source]

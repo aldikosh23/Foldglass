@@ -1,6 +1,12 @@
 import Foundation
 
 struct FoldSettings {
+    static let startAngleRange: ClosedRange<Double> = 30...115
+
+    static func startAngle(forComfortAngle angle: Double) -> Double {
+        min(startAngleRange.upperBound, max(startAngleRange.lowerBound, angle - 10))
+    }
+
     var startAngle: Double = 90
     var endAngle: Double = 12
     var blur: Double = 72

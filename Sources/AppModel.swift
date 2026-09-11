@@ -10,17 +10,27 @@ final class OverlayWindow: NSPanel {
 
 @MainActor
 final class AppModel: ObservableObject {
+    @Published var language = AppLanguage.load() {
+        didSet {
+            language.save()
+            if !previewIsDesktop {
+                do { previewRenderer.textures = try gpu.textures(for: DemoImage.make(language: language)) }
+                catch { message = AppMessage.preserving(error) }
+                refreshPreview()
+            }
+        }
+    }
     @Published var settings: FoldSettings {
         didSet {
-            if settings.startAngle != oldValue.startAngle { dismissEffect(); armed = false }
+            if settings.startAngle != oldValue.startAngle { dismissEffect(); wakeState.cancelOpening(); armed = false }
             saveSettings(); refreshPreview()
         }
     }
-    @Published var enabled = true { didSet { if !enabled { dismissEffect() }; armed = false } }
+    @Published var enabled = true { didSet { if !enabled { dismissEffect() }; wakeState.cancelOpening(); armed = false } }
     @Published private(set) var angle: Double?
-    @Published private(set) var sensorError: String?
+    @Published private(set) var sensorError: AppMessage?
     @Published private(set) var permission = CGPreflightScreenCaptureAccess()
-    @Published private(set) var message: String?
+    @Published private(set) var message: AppMessage?
     @Published private(set) var effectVisible = false
     @Published private(set) var capturing = false
     @Published var previewAngle: Double = 90 { didSet { refreshPreview() } }
@@ -34,14 +44,15 @@ final class AppModel: ObservableObject {
     let overlayRenderer: FoldRenderer
     private var overlay: OverlayWindow?
     private var captureTask: Task<Void, Never>?
-    private enum CapturePurpose { case preview, physical, demo }
+    private enum CapturePurpose { case preview, physical, opening, demo }
     private var capturePurpose: CapturePurpose?
     private var animation: Timer?
     private var previewTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
     private var generation = 0
     @Published private var armed = false
-    private var suspended = false
+    private var wakeState = WakeState()
+    private var suspended: Bool { wakeState.isSuspended }
     private var displayAngle: Double = 90
     private var targetAngle: Double = 90
     private var lastFrame = CACurrentMediaTime()
@@ -67,17 +78,21 @@ final class AppModel: ObservableObject {
         sensor.$error.sink { [weak self] error in
             guard let self else { return }
             if self.sensorError != error { self.sensorError = error }
-            if error != nil { self.dismissEffect() }
+            if error != nil { self.dismissEffect(); self.wakeState.cancelOpening() }
         }.store(in: &cancellables)
         let center = NSWorkspace.shared.notificationCenter
-        for name in [NSWorkspace.willSleepNotification, NSWorkspace.screensDidSleepNotification] {
+        for (name, reason) in [(NSWorkspace.willSleepNotification, WakeState.Pause.systemSleep),
+                               (NSWorkspace.screensDidSleepNotification, .displaySleep),
+                               (NSWorkspace.sessionDidResignActiveNotification, .inactiveSession)] {
             observationTokens.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.suspend() }
+                MainActor.assumeIsolated { self?.pause(reason) }
             })
         }
-        for name in [NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification] {
+        for (name, reason) in [(NSWorkspace.didWakeNotification, WakeState.Pause.systemSleep),
+                               (NSWorkspace.screensDidWakeNotification, .displaySleep),
+                               (NSWorkspace.sessionDidBecomeActiveNotification, .inactiveSession)] {
             observationTokens.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.resume() }
+                MainActor.assumeIsolated { self?.resume(reason) }
             })
         }
         observationTokens.append(NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
@@ -88,14 +103,14 @@ final class AppModel: ObservableObject {
         })
         for (name, lock) in [("com.apple.screenIsLocked", true), ("com.apple.screenIsUnlocked", false)] {
             observationTokens.append(DistributedNotificationCenter.default().addObserver(forName: Notification.Name(name), object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { if lock { self?.suspend() } else { self?.resume() } }
+                MainActor.assumeIsolated { if lock { self?.pause(.locked) } else { self?.resume(.locked) } }
             })
         }
         localEscapeMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown, .rightMouseDown]) { [weak self] event in
             if event.type != .keyDown || event.keyCode == 53 {
                 let cancelled = MainActor.assumeIsolated {
                     guard let self else { return false }
-                    let active = self.effectVisible || self.fullscreenDemo || self.capturePurpose == .physical
+                    let active = self.effectVisible || self.fullscreenDemo || self.capturePurpose == .physical || self.capturePurpose == .opening
                     self.escape()
                     return active
                 }
@@ -109,20 +124,26 @@ final class AppModel: ObservableObject {
             if event.type != .keyDown || event.keyCode == 53 { MainActor.assumeIsolated { self?.escape() } }
         }
         refreshPreview()
-        sensor.start()
+        if let session = CGSessionCopyCurrentDictionary() as? [String: Any] {
+            if session["CGSSessionScreenIsLocked"] as? Bool == true { pause(.locked) }
+            if session[kCGSessionOnConsoleKey as String] as? Bool != true { pause(.inactiveSession) }
+        }
+        if !suspended { sensor.start() }
     }
 
+    func text(_ key: String) -> String { language.text(key) }
+
     var status: String {
-        if let sensorError { return sensorError }
-        if let message { return message }
-        if !enabled { return "эффект на паузе" }
-        if suspended { return "экран спит" }
-        if !permission { return "нужен доступ к записи экрана" }
-        if capturing { return "подготавливаю снимок экрана" }
-        if effectVisible { return fullscreenDemo ? "демо на твоём экране" : "эффект следует за крышкой" }
-        if angle == nil { return "подключаю датчик крышки" }
-        if !armed { return "подними крышку выше \(Int(settings.startAngle + 2))°" }
-        return "готово. медленно опусти крышку"
+        if let sensorError { return sensorError.text(in: language) }
+        if let message { return message.text(in: language) }
+        if !enabled { return text("paused") }
+        if suspended { return text("screen_asleep") }
+        if !permission { return text("permission_needed") }
+        if capturing { return text("preparing_snapshot") }
+        if effectVisible { return fullscreenDemo ? text("demo_active") : text("following_lid") }
+        if angle == nil { return text("connecting_sensor") }
+        if !armed { return language.text("raise_lid", arguments: [String(Int(settings.startAngle + 2))]) }
+        return text("ready")
     }
 
     private func saveSettings() {
@@ -133,6 +154,11 @@ final class AppModel: ObservableObject {
     }
 
     func resetSettings() { settings = FoldSettings(); previewAngle = settings.startAngle }
+    func calibrateStartAngle() {
+        guard let angle else { return }
+        settings.startAngle = FoldSettings.startAngle(forComfortAngle: angle)
+        previewAngle = settings.startAngle
+    }
     func refreshPermission() { permission = CGPreflightScreenCaptureAccess() }
     func requestPermission() {
         if !CGPreflightScreenCaptureAccess() { _ = CGRequestScreenCaptureAccess() }
@@ -150,11 +176,18 @@ final class AppModel: ObservableObject {
             if message != nil { message = nil }
         }
         targetAngle = newAngle
+        if wakeState.openingPending {
+            guard desktopSessionAvailable else { return }
+            if wakeState.consumeOpening() && permission && !capturing && !effectVisible {
+                captureAndShow(purpose: .opening)
+            }
+            return
+        }
         if newAngle >= settings.startAngle {
             if capturePurpose == .physical { dismissEffect() }
             if !effectVisible { return }
         } else if armed && permission && !capturing && !effectVisible {
-            captureAndShow(demo: false)
+            captureAndShow(purpose: .physical)
         }
     }
 
@@ -163,17 +196,19 @@ final class AppModel: ObservableObject {
             guard let id = $0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else { return false }
             return CGDisplayIsBuiltin(id) != 0
         }), let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else {
-            throw FoldError.message("встроенный экран macbook недоступен")
+            throw AppMessage(key: "screen_unavailable")
         }
         return (screen, id)
     }
 
     private func captureDesktop() async throws -> (CGImage, NSScreen) {
-        guard CGPreflightScreenCaptureAccess() else { throw FoldError.message("разреши foldglass запись экрана в настройках macos") }
+        guard !suspended, desktopSessionAvailable else { throw CancellationError() }
+        guard CGPreflightScreenCaptureAccess() else { throw AppMessage(key: "grant_permission") }
         let (screen, id) = try builtInScreen()
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         try Task.checkCancellation()
-        guard let display = content.displays.first(where: { $0.displayID == id }) else { throw FoldError.message("screencapturekit не нашёл встроенный экран") }
+        guard !suspended, desktopSessionAvailable else { throw CancellationError() }
+        guard let display = content.displays.first(where: { $0.displayID == id }) else { throw AppMessage(key: "capture_display_missing") }
         let overlayWindows = content.windows.filter { $0.windowID == CGWindowID(overlay?.windowNumber ?? 0) }
         let filter = SCContentFilter(display: display, excludingWindows: overlayWindows)
         let config = SCStreamConfiguration()
@@ -185,11 +220,12 @@ final class AppModel: ObservableObject {
         config.colorSpaceName = CGColorSpace.sRGB
         let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
         try Task.checkCancellation()
+        guard !suspended, desktopSessionAvailable else { throw CancellationError() }
         return (image, screen)
     }
 
     func capturePreview() {
-        guard !capturing else { return }
+        guard !capturing, !suspended else { return }
         if !permission { requestPermission(); return }
         capturing = true
         capturePurpose = .preview
@@ -205,7 +241,7 @@ final class AppModel: ObservableObject {
                 previewIsDesktop = true
                 refreshPreview()
             } catch is CancellationError { }
-            catch { if ticket == generation { message = error.localizedDescription } }
+            catch { if ticket == generation { message = AppMessage.preserving(error) } }
         }
     }
 
@@ -230,16 +266,18 @@ final class AppModel: ObservableObject {
     func refreshPreview() { previewRenderer.update(angle: previewAngle, settings: settings) }
 
     func demoDesktop() {
-        guard enabled, !suspended else { message = "сначала включи эффект"; return }
+        guard enabled, !suspended else { message = AppMessage(key: "enable_first"); return }
         if !permission { requestPermission(); return }
         dismissEffect()
-        captureAndShow(demo: true)
+        wakeState.cancelOpening()
+        captureAndShow(purpose: .demo)
     }
 
-    private func captureAndShow(demo: Bool) {
-        guard enabled, !suspended else { return }
+    private func captureAndShow(purpose: CapturePurpose) {
+        guard enabled, !suspended, desktopSessionAvailable else { return }
+        let demo = purpose == .demo
         capturing = true
-        capturePurpose = demo ? .demo : .physical
+        capturePurpose = purpose
         fullscreenDemo = demo
         message = nil
         generation += 1
@@ -253,21 +291,22 @@ final class AppModel: ObservableObject {
             }
             do {
                 let (image, screen) = try await captureDesktop()
-                guard ticket == generation, enabled, !suspended else { return }
-                if !demo && (angle ?? settings.startAngle) >= settings.startAngle { return }
+                guard ticket == generation, enabled, !suspended, desktopSessionAvailable else { return }
+                if purpose == .physical && (angle ?? settings.startAngle) >= settings.startAngle { return }
                 let textures = try gpu.textures(for: image)
                 overlayRenderer.textures = textures
-                displayAngle = settings.startAngle
+                displayAngle = purpose == .opening ? settings.endAngle : settings.startAngle
                 targetAngle = demo ? settings.startAngle : (angle ?? settings.startAngle)
                 overlayRenderer.firstFrameReady = { [weak self] in
                     guard let self, ticket == self.generation, self.effectVisible else { return }
-                    self.beginAnimation(demo: demo)
+                    guard !self.suspended, self.desktopSessionAvailable else { self.dismissEffect(); return }
+                    self.beginAnimation(purpose: purpose)
                 }
                 showOverlay(on: screen)
             } catch is CancellationError { }
             catch {
                 guard ticket == generation else { return }
-                message = error.localizedDescription
+                message = AppMessage.preserving(error)
                 armed = false
                 fullscreenDemo = false
                 refreshPermission()
@@ -295,12 +334,12 @@ final class AppModel: ObservableObject {
         window.orderFrontRegardless()
         overlay = window
         effectVisible = true
-        // Present an identity frame before revealing the window. Its first drawable
-        // must never expose the opaque black clear color over the live desktop.
+        // Finish the first GPU frame while hidden, then blend into the desktop.
+        // Closing starts at identity; a wake reveal starts at the closed endpoint.
         view.draw()
     }
 
-    private func beginAnimation(demo: Bool) {
+    private func beginAnimation(purpose: CapturePurpose) {
         animation?.invalidate()
         let start = CACurrentMediaTime()
         lastFrame = start
@@ -310,13 +349,20 @@ final class AppModel: ObservableObject {
                 let now = CACurrentMediaTime()
                 let dt = min(0.05, now - self.lastFrame)
                 self.lastFrame = now
-                if demo {
+                let elapsed = now - start
+                if purpose == .demo {
                     let phase = min(1, (now - start) / 6)
                     self.displayAngle = self.settings.startAngle - (self.settings.startAngle - self.settings.endAngle) * pow(sin(phase * .pi), 2)
                     if phase >= 1 { self.dismissEffect(); return }
                 } else {
-                    self.displayAngle += (self.targetAngle - self.displayAngle) * (1 - exp(-dt / 0.09))
-                    if self.targetAngle >= self.settings.startAngle && self.displayAngle >= self.settings.startAngle - 0.08 {
+                    if purpose == .opening && elapsed < WakeState.openingDuration {
+                        self.displayAngle = WakeState.openingAngle(target: self.targetAngle,
+                            start: self.settings.startAngle, end: self.settings.endAngle, elapsed: elapsed)
+                    } else {
+                        self.displayAngle += (self.targetAngle - self.displayAngle) * (1 - exp(-dt / 0.09))
+                    }
+                    let revealComplete = purpose != .opening || elapsed >= WakeState.openingDuration
+                    if revealComplete && self.targetAngle >= self.settings.startAngle && self.displayAngle >= self.settings.startAngle - 0.08 {
                         self.dismissEffect(); return
                     }
                 }
@@ -343,22 +389,36 @@ final class AppModel: ObservableObject {
     }
 
     func escape() {
-        guard effectVisible || fullscreenDemo || capturePurpose == .physical else { return }
+        guard effectVisible || fullscreenDemo || capturePurpose == .physical || capturePurpose == .opening else { return }
         dismissEffect()
+        wakeState.cancelOpening()
         armed = false
     }
-    private func suspend() {
-        suspended = true
+    private var desktopSessionAvailable: Bool {
+        guard let session = CGSessionCopyCurrentDictionary() as? [String: Any] else { return false }
+        return session[kCGSessionOnConsoleKey as String] as? Bool == true
+            && session[kCGSessionLoginDoneKey as String] as? Bool == true
+            && session["CGSSessionScreenIsLocked"] as? Bool != true
+    }
+
+    private func pause(_ reason: WakeState.Pause) {
+        let physicalEffect = armed || effectVisible || capturePurpose == .physical || capturePurpose == .opening
+        let wasClosing = enabled && physicalEffect && !fullscreenDemo && (angle ?? settings.startAngle) < settings.startAngle
+        wakeState.pause(reason, wasClosing: wasClosing)
+        suspendRuntime()
+    }
+
+    private func suspendRuntime() {
         dismissEffect()
         stopPreview()
         sensor.stop()
         armed = false
     }
-    private func resume() {
-        guard suspended else { return }
-        suspended = false
+    private func resume(_ reason: WakeState.Pause) {
+        wakeState.resume(reason)
+        guard !suspended else { return }
         refreshPermission()
         sensor.start()
     }
-    func shutdown() { suspend() }
+    func shutdown() { wakeState.cancelOpening(); suspendRuntime() }
 }

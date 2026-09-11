@@ -75,9 +75,9 @@ close the settings window to leave foldglass running in the menu bar. click the 
 
 ## privacy and limits
 
-foldglass takes **one screenshot** of the built-in display when an effect starts. the image and its gpu textures stay in memory; the app does not save screenshots to disk. **refresh snapshot** also captures a single image for the preview and keeps it in memory until replaced or the app quits.
+foldglass captures the built-in display when an effect starts and animates **one usable screenshot**. the image and its gpu textures stay in memory; the app does not save screenshots to disk. **refresh snapshot** also captures a single image for the preview and keeps it in memory until replaced or the app quits.
 
-the lock screen effect captures a fresh lock screen image through screencapturekit. it does not reuse a desktop image from before locking. its overlay passes mouse input through, does not take keyboard focus, and disappears on unlock.
+the lock screen effect captures a fresh lock screen image through screencapturekit. if macos returns a blank frame during wake, foldglass briefly checks for a ready image before showing the overlay. blank frames are discarded; if no image becomes available in time, the effect is skipped instead of covering the screen in black. it does not reuse a desktop image from before locking. its overlay passes mouse input through, does not take keyboard focus, and disappears on unlock.
 
 there are no accounts, telemetry, analytics, automatic updates, or network requests in the app. clicking its reference link opens the website in your browser. microphone and accessibility permissions are not required.
 

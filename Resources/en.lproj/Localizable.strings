@@ -105,3 +105,4 @@
 "demo_friday" = "friday";
 "demo_space" = "space to think.";
 "lock_overlay_unavailable" = "lock-screen effect unavailable on this macos version";
+"lock_snapshot_blank" = "macos returned an empty lock screen image; raise the lid to rearm";

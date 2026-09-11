@@ -1,6 +1,7 @@
 import AppKit
 import MetalKit
 import MetalPerformanceShaders
+import OSLog
 
 enum FoldError: LocalizedError {
     case message(String)
@@ -81,6 +82,8 @@ final class FoldRenderer: NSObject, MTKViewDelegate {
     var angle: Double = 90
     var settings = FoldSettings()
     var firstFrameReady: (() -> Void)?
+    private(set) var submittedFrames = 0
+    private let logger = Logger(subsystem: "local.foldglass", category: "effect")
 
     init(gpu: FoldGPU) { self.gpu = gpu }
     func makeView() -> MTKView {
@@ -107,6 +110,10 @@ final class FoldRenderer: NSObject, MTKViewDelegate {
               let command = gpu.queue.makeCommandBuffer() else { return }
         gpu.encode(command, pass: pass, textures: textures, angle: angle, settings: settings)
         command.present(drawable)
+        submittedFrames += 1
+        command.addCompletedHandler { [logger] command in
+            if let error = command.error { logger.error("GPU frame failed: \(error.localizedDescription, privacy: .public)") }
+        }
         if let ready = firstFrameReady {
             firstFrameReady = nil
             command.addCompletedHandler { _ in DispatchQueue.main.async { ready() } }

@@ -17,6 +17,9 @@ swiftc -swift-version 5 -O "$project_dir/Sources/Localization.swift" \
 swiftc -swift-version 5 -O "$project_dir/Sources/WakeState.swift" \
   "$project_dir/Tests/WakeStateTests.swift" -o "$test_dir/wake-state"
 "$test_dir/wake-state"
+swiftc -swift-version 5 -O "$project_dir/Sources/SnapshotBrightness.swift" \
+  "$project_dir/Tests/SnapshotBrightnessTests.swift" -framework CoreGraphics -o "$test_dir/snapshot-brightness"
+"$test_dir/snapshot-brightness"
 if [[ "${RUN_METAL_TESTS:-0}" == "1" ]]; then
   swiftc -swift-version 5 -O "$project_dir/Sources/FoldCurve.swift" \
     "$project_dir/Sources/Localization.swift" \

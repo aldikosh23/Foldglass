@@ -36,6 +36,11 @@ struct FoldCurveTests {
         precondition(FoldState.overlayOpacity(progress: 0, elapsed: 1) == 0, "threshold must blend into the live desktop")
         precondition(FoldState.overlayOpacity(progress: 1, elapsed: 0) == 0, "first frame must stay hidden")
         precondition(FoldState.overlayOpacity(progress: 1, elapsed: 0.22) == 1, "ready overlay must become fully visible")
+        precondition(FoldState.overlayOpacity(progress: 1, elapsed: 0, fadeDuration: 0.045) == 0)
+        precondition(FoldState.overlayOpacity(progress: 1, elapsed: 0.045, fadeDuration: 0.045) == 1,
+                     "opening should show its ready frame within 45 ms")
+        precondition(FoldState.overlayOpacity(progress: 1, elapsed: 0.045) < 0.2,
+                     "closing must retain the gradual entry")
         let entry = FoldState.overlayOpacity(progress: 0.001, elapsed: 0.1)
         precondition(entry < 0.001, "small hinge movement must not pop in the snapshot")
         print("fold curve passed: identity, monotonic closing, continuity, closed endpoint")

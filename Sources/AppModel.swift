@@ -61,6 +61,7 @@ final class AppModel: ObservableObject {
     private var displayAngle: Double = 90
     private var targetAngle: Double = 90
     private var lastFrame = CACurrentMediaTime()
+    private var firstSubmittedFrame = 0
     private var escapeMonitor: Any?
     private var localEscapeMonitor: Any?
     private var observationTokens: [NSObjectProtocol] = []
@@ -83,7 +84,10 @@ final class AppModel: ObservableObject {
         sensor.$error.sink { [weak self] error in
             guard let self else { return }
             if self.sensorError != error { self.sensorError = error }
-            if error != nil { self.dismissEffect(); self.wakeState.cancelOpening() }
+            if let error {
+                self.logger.error("sensor failure: \(error.text(in: .english), privacy: .public)")
+                self.dismissEffect("sensor failure"); self.wakeState.cancelOpening()
+            }
         }.store(in: &cancellables)
         let center = NSWorkspace.shared.notificationCenter
         for (name, reason) in [(NSWorkspace.willSleepNotification, WakeState.Pause.systemSleep),
@@ -101,7 +105,7 @@ final class AppModel: ObservableObject {
             })
         }
         observationTokens.append(NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.dismissEffect() }
+            MainActor.assumeIsolated { self?.dismissEffect("screen parameters changed") }
         })
         observationTokens.append(NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.refreshPermission(); self?.loginItem.refresh() }
@@ -115,9 +119,7 @@ final class AppModel: ObservableObject {
             if event.type != .keyDown || event.keyCode == 53 {
                 let cancelled = MainActor.assumeIsolated {
                     guard let self else { return false }
-                    let active = self.effectVisible || self.fullscreenDemo || self.capturePurpose == .physical || self.capturePurpose == .opening
-                    self.escape()
-                    return active
+                    return self.escape()
                 }
                 if cancelled { return nil }
             }
@@ -126,7 +128,7 @@ final class AppModel: ObservableObject {
         // This monitor works when macOS allows global key observation. Mouse movement
         // and the normal system menu remain available without Accessibility access.
         escapeMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown, .leftMouseDown, .rightMouseDown]) { [weak self] event in
-            if event.type != .keyDown || event.keyCode == 53 { MainActor.assumeIsolated { self?.escape() } }
+            if event.type != .keyDown || event.keyCode == 53 { _ = MainActor.assumeIsolated { self?.escape() } }
         }
         refreshPreview()
         if let session = CGSessionCopyCurrentDictionary() as? [String: Any] {
@@ -223,10 +225,25 @@ final class AppModel: ObservableObject {
         config.capturesAudio = false
         config.pixelFormat = kCVPixelFormatType_32BGRA
         config.colorSpaceName = CGColorSpace.sRGB
-        let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
-        try Task.checkCancellation()
-        guard !suspended, captureSurface == surface else { throw CancellationError() }
-        return (image, screen)
+        let deadline = CACurrentMediaTime() + 0.6
+        var attempt = 0
+        while true {
+            attempt += 1
+            try Task.checkCancellation()
+            guard !suspended, captureSurface == surface else { throw CancellationError() }
+            let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+            try Task.checkCancellation()
+            guard !suspended, captureSurface == surface else { throw CancellationError() }
+            if surface == .desktop { return (image, screen) }
+            guard (angle ?? settings.startAngle) < settings.startAngle else { throw CancellationError() }
+            let brightness = SnapshotBrightness(image)
+            logger.notice("lock capture attempt=\(attempt) mean=\(brightness.mean) lit=\(brightness.brightPixels) angle=\(self.angle ?? -1)")
+            if !brightness.isBlank { return (image, screen) }
+            // Poll blank wake frames at display cadence, within a bounded window.
+            // No overlay is visible while the lock screen image is unavailable.
+            guard CACurrentMediaTime() < deadline else { throw AppMessage(key: "lock_snapshot_blank") }
+            try await Task.sleep(nanoseconds: 16_666_667)
+        }
     }
 
     func capturePreview() {
@@ -306,10 +323,10 @@ final class AppModel: ObservableObject {
                 targetAngle = demo ? settings.startAngle : (angle ?? settings.startAngle)
                 overlayRenderer.firstFrameReady = { [weak self] in
                     guard let self, ticket == self.generation, self.effectVisible else { return }
-                    guard !self.suspended, self.captureSurface == surface else { self.dismissEffect(); return }
+                    guard !self.suspended, self.captureSurface == surface else { self.dismissEffect("surface changed before first frame"); return }
                     // The lid may finish opening while the first frame is rendering.
                     if !demo && (self.angle ?? self.settings.startAngle) >= self.settings.startAngle {
-                        self.dismissEffect(); return
+                        self.dismissEffect("lid already open before first frame"); return
                     }
                     if purpose == .opening {
                         self.wakeState.openingStarted()
@@ -333,6 +350,7 @@ final class AppModel: ObservableObject {
     }
 
     private func showOverlay(on screen: NSScreen, surface: CaptureSurface) throws {
+        firstSubmittedFrame = overlayRenderer.submittedFrames
         if surface == .lockScreen && lockScreenSpace == nil { lockScreenSpace = try LockScreenSpace() }
         let window = OverlayWindow(contentRect: screen.frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
@@ -366,6 +384,7 @@ final class AppModel: ObservableObject {
         logger.debug("animation begin source=\(self.overlaySurface?.rawValue ?? "none", privacy: .public) angle=\(self.angle ?? -1)")
         animation?.invalidate()
         let start = CACurrentMediaTime()
+        let fadeDuration = purpose == .opening ? 0.045 : 0.22
         lastFrame = start
         let timer = Timer(timeInterval: 1 / 60, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
@@ -385,7 +404,7 @@ final class AppModel: ObservableObject {
                     }
                 }
                 let progress = FoldState.at(angle: self.displayAngle, settings: self.settings).progress
-                self.overlay?.alphaValue = FoldState.overlayOpacity(progress: progress, elapsed: now - start)
+                self.overlay?.alphaValue = FoldState.overlayOpacity(progress: progress, elapsed: now - start, fadeDuration: fadeDuration)
                 self.overlayRenderer.update(angle: self.displayAngle, settings: self.settings)
             }
         }
@@ -393,8 +412,10 @@ final class AppModel: ObservableObject {
         RunLoop.main.add(timer, forMode: .common)
     }
 
-    func dismissEffect() {
-        if effectVisible || capturing { logger.debug("dismiss angle=\(self.angle ?? -1)") }
+    func dismissEffect(_ reason: String = #function) {
+        if effectVisible || capturing {
+            logger.notice("dismiss reason=\(reason, privacy: .public) angle=\(self.angle ?? -1) frames=\(self.overlayRenderer.submittedFrames - self.firstSubmittedFrame) visible=\(self.overlay?.isVisible ?? false) occluded=\(!(self.overlay?.occlusionState.contains(.visible) ?? false))")
+        }
         generation += 1
         captureTask?.cancel(); captureTask = nil
         capturing = false
@@ -408,11 +429,14 @@ final class AppModel: ObservableObject {
         fullscreenDemo = false
     }
 
-    func escape() {
-        guard effectVisible || fullscreenDemo || capturePurpose == .physical || capturePurpose == .opening else { return }
-        dismissEffect()
+    @discardableResult func escape() -> Bool {
+        // Authentication input belongs to macOS; never consume or react to it on the lock screen.
+        guard captureSurface == .desktop,
+              effectVisible || fullscreenDemo || capturePurpose == .physical || capturePurpose == .opening else { return false }
+        dismissEffect("desktop input cancellation")
         wakeState.cancelOpening()
         armed = false
+        return true
     }
     private var captureSurface: CaptureSurface? {
         guard let session = CGSessionCopyCurrentDictionary() as? [String: Any],
@@ -420,6 +444,7 @@ final class AppModel: ObservableObject {
               session[kCGSessionLoginDoneKey as String] as? Bool == true else { return nil }
         return session["CGSSessionScreenIsLocked"] as? Bool == true ? .lockScreen : .desktop
     }
+
 
     private func pause(_ reason: WakeState.Pause) {
         // Resigning app/session focus at screen lock need not mean another user owns the display.

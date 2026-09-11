@@ -18,12 +18,12 @@ struct FoldState {
     let progress: Float
     let projection: Float
 
-    static func overlayOpacity(progress: Float, elapsed: Double) -> Double {
+    static func overlayOpacity(progress: Float, elapsed: Double, fadeDuration: Double = 0.22) -> Double {
         func smooth(_ value: Double) -> Double {
             let x = min(1, max(0, value))
             return x * x * (3 - 2 * x)
         }
-        return smooth(Double(progress) / 0.065) * smooth(elapsed / 0.22)
+        return smooth(Double(progress) / 0.065) * smooth(elapsed / fadeDuration)
     }
 
     static func at(angle: Double, settings: FoldSettings) -> FoldState {

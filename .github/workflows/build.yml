@@ -1,0 +1,27 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: build apple silicon app
+        run: ./build.sh
+      - name: check animation curves and login launch events
+        run: ./scripts/test.sh
+      - name: package app
+        run: ditto -c -k --sequesterRsrc --keepParent build/Foldglass.app build/Foldglass-macos-arm64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Foldglass-macos-arm64
+          path: build/Foldglass-macos-arm64.zip

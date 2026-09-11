@@ -104,3 +104,4 @@
 "demo_september" = "september";
 "demo_friday" = "friday";
 "demo_space" = "space to think.";
+"lock_overlay_unavailable" = "lock-screen effect unavailable on this macos version";

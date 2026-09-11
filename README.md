@@ -6,7 +6,7 @@ a native macbook menu bar app that turns closing the lid into a smooth glass eff
 
 ![foldglass, a native folding effect for macbook](docs/assets/hero.png)
 
-[download v1.2.0](https://github.com/aldikosh23/Foldglass/releases/tag/v1.2.0) · [russian guide](docs/README.ru.md) · [build from source](#build-from-source) · [report an issue](https://github.com/aldikosh23/Foldglass/issues)
+[download v1.3.0](https://github.com/aldikosh23/Foldglass/releases/tag/v1.3.0) · [russian guide](docs/README.ru.md) · [build from source](#build-from-source) · [report an issue](https://github.com/aldikosh23/Foldglass/issues)
 
 | platform | implementation | license |
 | --- | --- | --- |
@@ -19,6 +19,7 @@ a native macbook menu bar app that turns closing the lid into a smooth glass eff
 demo scene, rendered with the app's shader. this is a synthetic desktop, not a recording of a physical lid movement.
 
 - follows the actual lid angle, including when you stop halfway or open it again.
+- animates the lock screen while opening after sleep, before touch id or password entry.
 - blends into the desktop near the activation angle to soften the transition.
 - adjusts the starting angle, frosted glass, dimming, and perspective stretch.
 - runs in the menu bar, with optional background launch at login.
@@ -29,7 +30,7 @@ an independent visual recreation inspired by the iphone duo folding animation. t
 
 ## install
 
-1. download [Foldglass-v1.2.0-macos-arm64.zip](https://github.com/aldikosh23/Foldglass/releases/download/v1.2.0/Foldglass-v1.2.0-macos-arm64.zip), unzip it, and move `Foldglass.app` into **applications** before opening it.
+1. download [Foldglass-v1.3.0-macos-arm64.zip](https://github.com/aldikosh23/Foldglass/releases/download/v1.3.0/Foldglass-v1.3.0-macos-arm64.zip), unzip it, and move `Foldglass.app` into **applications** before opening it.
 2. open the app. the release is ad hoc signed and **not notarized**. if macos blocks it and you trust this download, open **system settings > privacy & security > open anyway**, then confirm. see [apple's explanation](https://support.apple.com/en-us/102445).
 3. click **grant screen access** and enable foldglass in the screen recording section of privacy & security. accept an app restart if macos requests it.
 4. open the lid past **92°**, then slowly lower it below **90°**. the effect should follow the lid and clear when it opens again.
@@ -62,29 +63,33 @@ close the settings window to leave foldglass running in the menu bar. click the 
 
 **language:** english is the default, regardless of your macos language. use the **language** selector in settings to choose **english** or **русский**. the interface updates immediately and remembers your choice after restarting. this guide uses the english control names.
 
-**cancel:** click to dismiss the effect. escape also works when macos delivers the key event to the app. after cancellation, raise the lid at least 2° above the configured starting angle to rearm it. the default rearm angle is 92°.
+**cancel:** on the desktop, click to dismiss the effect. escape also works when macos delivers the key event to the app. after cancellation, raise the lid at least 2° above the configured starting angle to rearm it. the default rearm angle is 92°. on the lock screen, the overlay passes mouse clicks through and does not take keyboard focus; it clears when you unlock or raise the lid to the start angle.
 
 **launch at login:** turn on **launch at login** in settings. subsequent login launches stay in the background with a menu bar icon and no settings window. startup is opt-in and uses `SMAppService`. if macos requests approval, click **allow in system settings** and allow foldglass. disable startup using the same toggle or **system settings > general > login items & extensions**. keep the installed app in its original location while this is enabled.
 
 **pause or stop:** **pause effect** pauses the current session. **quit foldglass** exits the app. quitting does not disable launch at login.
 
-**opening after sleep:** the effect can follow reopening once macos has woken the display and unlocked the desktop, provided the lid is still below the start angle. if the lid is already open by then, no delayed animation is replayed. the lock screen is not animated. reopening while the desktop remains unlocked follows the angle normally.
+**opening after sleep:** open the lid past the rearm angle, close it fully, wait for sleep, then slowly reopen it. once the display wakes, the effect follows the actual lid angle on the lock screen, before unlocking. it uses a fresh image of the lock screen, including its clock, and clears on unlock or when the lid reaches the start angle. if the lid is already open, no delayed animation is replayed. reopening while the desktop remains unlocked follows the angle normally.
+
+**experimental lock screen support:** physical opening from sleep before touch id has been checked on a macbook air m5 with macos 27. displaying the overlay uses private skylight apis and may stop working after a macos update. this covers locking an existing logged-in session; filevault's startup unlock screen and login before the app has started are not supported.
 
 ## privacy and limits
 
 foldglass takes **one screenshot** of the built-in display when an effect starts. the image and its gpu textures stay in memory; the app does not save screenshots to disk. **refresh snapshot** also captures a single image for the preview and keeps it in memory until replaced or the app quits.
 
+the lock screen effect captures a fresh lock screen image through screencapturekit. it does not reuse a desktop image from before locking. its overlay passes mouse input through, does not take keyboard focus, and disappears on unlock.
+
 there are no accounts, telemetry, analytics, automatic updates, or network requests in the app. clicking its reference link opens the website in your browser. microphone and accessibility permissions are not required.
 
 - the image is frozen while the effect runs. videos and other changing content are not live inside the overlay.
 - only the built-in display receives the effect; external screens are unaffected.
-- the app does not prevent sleep and does not draw over the lock screen.
+- the app does not prevent sleep. lock screen rendering is experimental and depends on private macos apis.
 - sensor updates run at 30 hz, with visual smoothing between readings.
 - perceived perspective depends on your viewing position. tune **stretch** to suit it.
 
 ## build from source
 
-use an apple silicon mac with macos 14 or later and apple's command line tools. install the tools with `xcode-select --install` if needed. no package manager or third-party dependency is required.
+use an apple silicon mac with macos 14 or later and apple's command line tools. install the tools with `xcode-select --install` if needed. no package manager or dependency download is required. the lock screen integration includes code based on skylightwindow; see [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ```sh
 git clone https://github.com/aldikosh23/Foldglass.git
@@ -109,6 +114,7 @@ automated checks cover animation curves and selected rendering endpoints. they d
 | --- | --- |
 | `Sources/LidSensor.swift` | reads the lid's hid feature report on a serial queue |
 | `Sources/AppModel.swift` | captures the screen and manages effect state |
+| `Sources/LockScreenSpace.swift` | places the lock screen overlay using private skylight apis |
 | `Sources/LoginItem.swift` | registers background startup with macos |
 | `Sources/FoldCurve.swift` | maps lid angle to progress and projection |
 | `Sources/FoldRenderer.swift` | prepares blur levels and renders with metal |
@@ -125,5 +131,6 @@ issues and focused pull requests are welcome. for a sensor problem, include your
 
 - [apple iphone duo](https://www.apple.com/iphone-duo/) and [apple's original animation](https://www.apple.com/105/media/us/iphone-duo/2026/9305e4b9-72d9-4c05-9381-b572adadd5e5/anim/hero/large_2x.mp4): visual references.
 - [sam gold's lidanglesensor research](https://github.com/samhenrigold/LidAngleSensor): reference for the lid-angle hid protocol. foldglass uses its own implementation; no source code was copied from that project.
+- [lakr233's skylightwindow](https://github.com/Lakr233/SkyLightWindow): basis for the private skylight lock screen integration, under the mit license. see [third-party notices](THIRD_PARTY_NOTICES.md).
 
 released under the [mit license](LICENSE). apple, iphone, macbook, and macos are trademarks of apple inc. this project is not affiliated with or endorsed by apple.

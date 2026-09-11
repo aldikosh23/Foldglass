@@ -104,3 +104,4 @@
 "demo_september" = "сентябрь";
 "demo_friday" = "пятница";
 "demo_space" = "место для мыслей.";
+"lock_overlay_unavailable" = "эффект на блокировке недоступен в этой версии macos";

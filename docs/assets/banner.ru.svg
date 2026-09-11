@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-labelledby="title desc">
+<title id="title">Foldglass</title><desc id="desc">Стеклянный экран складывается к шарниру ноутбука.</desc>
+<defs>
+  <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#0A162B"/><stop offset="1" stop-color="#07101D"/></linearGradient>
+  <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#67E8F9" stop-opacity=".85"/><stop offset=".48" stop-color="#4F72EB" stop-opacity=".78"/><stop offset="1" stop-color="#B89CFF" stop-opacity=".92"/></linearGradient>
+  <linearGradient id="edge" x2="1" y2="1"><stop stop-color="#C6FBFF"/><stop offset="1" stop-color="#7874CC" stop-opacity=".3"/></linearGradient>
+  <radialGradient id="halo"><stop stop-color="#4166D5" stop-opacity=".35"/><stop offset="1" stop-color="#4166D5" stop-opacity="0"/></radialGradient>
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#BCD3FC" stroke-opacity=".035"/></pattern>
+  <clipPath id="panel"><path d="M804 94Q803 78 820 82L1150 145Q1166 148 1165 164L1159 283Q1158 296 1143 293L823 235Q811 233 810 220Z"/></clipPath>
+</defs>
+<rect width="1280" height="400" rx="24" fill="url(#bg)"/>
+<rect width="1280" height="400" rx="24" fill="url(#grid)"/>
+<ellipse cx="1000" cy="215" rx="300" ry="230" fill="url(#halo)"/>
+<g font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Arial, sans-serif">
+  <rect x="62" y="61" width="28" height="4" rx="2" fill="#5EEAD4"/>
+  <text x="105" y="68" fill="#A7BED9" font-size="14" letter-spacing="2.4">АНИМАЦИЯ ДЛЯ MACBOOK</text>
+  <text x="58" y="170" fill="#F1F7FF" font-size="84" font-weight="650" letter-spacing="-3">Foldglass</text>
+  <text x="62" y="218" fill="#D2DDF0" font-size="27" letter-spacing="-.4">Экран следует за крышкой.</text>
+  <text x="62" y="253" fill="#8298B4" font-size="17">Точный угол. Мягкое размытие. Плавное открытие.</text>
+  <g font-size="13" fill="#B9CEE6">
+    <rect x="62" y="302" width="112" height="34" rx="17" fill="#12253A" stroke="#23415B"/>
+    <text x="118" y="324" text-anchor="middle">Swift + Metal</text>
+    <rect x="185" y="302" width="117" height="34" rx="17" fill="#12253A" stroke="#23415B"/>
+    <text x="243.5" y="324" text-anchor="middle">Строка меню</text>
+  </g>
+</g>
+<g>
+  <path d="M746 84Q747 68 763 68L1090 69Q1106 69 1106 85L1106 268L750 268Z" fill="#6C7BB8" fill-opacity=".045" stroke="#748AD7" stroke-opacity=".25"/>
+  <path d="M742 298L1089 351L1208 295L860 241Z" fill="#14243D" stroke="#6685B6" stroke-opacity=".4"/>
+  <path d="M742 298L1089 351L1208 295L1208 301L1089 358L742 305Z" fill="#091120" stroke="#6685B6" stroke-opacity=".3"/>
+  <path d="M804 94Q803 78 820 82L1150 145Q1166 148 1165 164L1159 283Q1158 296 1143 293L823 235Q811 233 810 220Z" fill="url(#glass)" stroke="url(#edge)" stroke-width="1.5"/>
+  <g clip-path="url(#panel)">
+    <path d="M775 230C890 114 997 348 1190 106L1200 320L785 269Z" fill="#B8ACFF" fill-opacity=".48"/>
+    <path d="M775 201C916 76 1004 299 1185 93" fill="none" stroke="#8FEAF5" stroke-width="40" stroke-opacity=".33"/>
+    <path d="M796 90L1190 288" stroke="#EEF8FF" stroke-opacity=".07" stroke-width="100"/>
+  </g>
+  <path d="M823 246L1140 305" stroke="#B9D1EF" stroke-opacity=".4" stroke-width="3" stroke-linecap="round"/>
+  <path d="M903 304L981 316L1010 302L932 290Z" fill="#233A58" stroke="#6B8EB8" stroke-opacity=".3"/>
+  <path d="M762 271C715 224 710 166 735 122" fill="none" stroke="#5EEAD4" stroke-opacity=".6" stroke-dasharray="3 7" stroke-linecap="round"/>
+</g>
+</svg>

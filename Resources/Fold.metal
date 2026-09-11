@@ -26,11 +26,11 @@ fragment float4 foldFragment(VertexOut in [[stage_in]],
     else if (radius < 18.0) color = mix(soft.sample(s, uv).rgb, medium.sample(s, uv).rgb, (radius - 6.0) / 12.0);
     else if (radius < 42.0) color = mix(medium.sample(s, uv).rgb, broad.sample(s, uv).rgb, (radius - 18.0) / 24.0);
     else color = mix(broad.sample(s, uv).rgb, frost.sample(s, uv).rgb, clamp((radius - 42.0) / 54.0, 0.0, 1.0));
-    // Separate opacity from frost: the first degrees should turn the screen into
-    // glass without abruptly dimming the whole desktop. No late threshold switch.
-    float dark = pow(u.progress, 1.8) * (0.16 + 0.84 * pow(height, 0.8));
+    // Keep the image lit while it stretches and frosts. Edge shading builds
+    // gently; the full fade belongs to the final part of the physical fold.
+    float dark = pow(u.progress, 1.3) * (0.12 + 0.30 * pow(height, 1.3));
     float dim = clamp(dark * u.darkness, 0.0, 0.98);
-    float close = smoothstep(0.0, 1.0, pow(u.progress, 3.0));
+    float close = smoothstep(0.0, 1.0, pow(u.progress, 6.0));
     color *= (1.0 - dim) * (1.0 - close);
     return float4(color, 1);
 }

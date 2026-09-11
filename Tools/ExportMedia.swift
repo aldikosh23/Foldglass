@@ -77,16 +77,16 @@ struct ExportMedia {
             NSGradient(starting: color(0x090D13), ending: color(0x182630))!.draw(in: bounds, angle: 38)
             NSGradient(starting: color(0x597B85, alpha: 0.24), ending: color(0x597B85, alpha: 0))!
                 .draw(in: NSBezierPath(ovalIn: CGRect(x: 820, y: 320, width: 1080, height: 950)), relativeCenterPosition: .zero)
-            text("native lid animation for macos", x: 76, y: 803, size: 17,
+            text("Native lid animation for macOS", x: 76, y: 803, size: 17,
                  tint: color(0x92B2BC), weight: .medium, mono: true)
-            text("foldglass", x: 70, y: 688, size: 92, tint: color(0xEFF3F1), weight: .semibold)
-            text("a softer close. a seamless return.", x: 76, y: 651, size: 29, tint: color(0xA7B6BF))
+            text("Foldglass", x: 70, y: 688, size: 92, tint: color(0xEFF3F1), weight: .semibold)
+            text("A softer close. A smooth return.", x: 76, y: 651, size: 29, tint: color(0xA7B6BF))
             if let icon = NSImage(contentsOf: root.appendingPathComponent("Resources/AppIcon.icns")) {
                 icon.draw(in: CGRect(x: 1312, y: 649, width: 224, height: 224))
             }
             line(CGRect(x: 76, y: 601, width: 1448, height: 1), tint: color(0xAEC7D2, alpha: 0.14))
-            let names = ["01 / open", "02 / folding", "03 / almost closed"]
-            let captions = ["your desktop, untouched", "perspective meets frosted glass", "light fades toward the hinge"]
+            let names = ["01 / Open", "02 / Folding", "03 / Almost closed"]
+            let captions = ["Your desktop, untouched", "Perspective meets frosted glass", "Light fades toward the hinge"]
             for index in 0..<3 {
                 let x = CGFloat(72 + index * 496)
                 text(names[index], x: x + 3, y: 566, size: 15, tint: color(0x9BB0BC), mono: true)
@@ -96,9 +96,9 @@ struct ExportMedia {
                 text(captions[index], x: x + 3, y: 156, size: 18, tint: color(0x92A5B1))
             }
             line(CGRect(x: 76, y: 113, width: 1448, height: 1), tint: color(0xAEC7D2, alpha: 0.14))
-            text("native metal shader / synthetic desktop", x: 76, y: 65, size: 15,
+            text("Native Metal shader / Synthetic desktop", x: 76, y: 65, size: 15,
                  tint: color(0x7C939F), mono: true)
-            text("open source / made for mac", x: 1250, y: 65, size: 15,
+            text("Open source / Made for Mac", x: 1250, y: 65, size: 15,
                  tint: color(0x7C939F), mono: true)
         }
         try save(hero, to: assets.appendingPathComponent("hero.png"))
@@ -119,7 +119,7 @@ struct ExportMedia {
                 color(0x0C131A).setFill()
                 CGRect(x: 0, y: 0, width: 720, height: 468).fill()
                 screen(shader, in: CGRect(x: 30, y: 30, width: 660, height: 429), radius: 8)
-                text("native shader demo / synthetic desktop", x: 31, y: 7, size: 11,
+                text("Native shader demo / Synthetic desktop", x: 31, y: 7, size: 11,
                      tint: color(0x90A7B4), mono: true)
                 text(String(format: "%02.0f°", angle), x: 656, y: 6, size: 13,
                      tint: color(0xCDDCE0), weight: .medium, mono: true)

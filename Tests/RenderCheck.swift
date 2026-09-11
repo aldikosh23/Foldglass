@@ -33,7 +33,8 @@ struct RenderCheck {
         let inactive = try render(120).0
         precondition(inactive == open, "open screen must be pixel identical across inactive angles")
         var previousMean = Double.infinity
-        for angle in [90.0, 75, 60, 40, 12] {
+        var openMean = 0.0
+        for angle in [90.0, 75, 60, 40, 30, 12] {
             let (bytes, ms) = try render(angle)
             let mean = bytes.withUnsafeBytes { buffer -> Double in
                 let b = buffer.bindMemory(to: UInt8.self)
@@ -44,6 +45,10 @@ struct RenderCheck {
             precondition(mean < previousMean, "brightness should fall as the lid closes")
             if angle == 12 { precondition(mean == 0, "closed frame must be black") }
             if angle == 90 { precondition(mean > 30, "open frame must contain the source image") }
+            if angle == 90 { openMean = mean }
+            if angle == 30 {
+                precondition(mean > openMean * 0.6, "the folding image should stay lit until the final part of closing")
+            }
             previousMean = mean
             let provider = CGDataProvider(data: bytes as CFData)!
             let image = CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue).union(.byteOrder32Little), provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)!
@@ -51,6 +56,6 @@ struct RenderCheck {
             try png.write(to: output.appendingPathComponent("angle-\(Int(angle)).png"))
             print(String(format: "angle %.0f: mean %.2f, GPU %.3f ms", angle, mean, ms))
         }
-        print("render checks passed: identity, ordered dimming, fully black endpoint, five actual GPU frames")
+        print("render checks passed: identity, gradual dimming, lit folding image, black endpoint, six actual GPU frames")
     }
 }

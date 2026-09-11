@@ -182,10 +182,6 @@ RUN_METAL_TESTS=1 ./scripts/test.sh
 
 ## Лицензия и референсы
 
-Дополнительные примеры движения: [демонстрация Marques Brownlee](https://www.tiktok.com/@mkbhd/video/7683665862523440398) и [переход в ролике Rudy](https://www.tiktok.com/@rudy.esmlrr/video/7683627057833610528).
-
-[Демонстрация Timothée Gauthier на MacBook](https://www.tiktok.com/@tim_gauthier/video/7684021769346338056) послужила референсом для мягкого затемнения от верхнего края к шарниру.
-
 Код открыт по [лицензии MIT](../LICENSE).
 
 - [iPhone Duo](https://www.apple.com/iphone-duo/) и [оригинальная анимация Apple](https://www.apple.com/105/media/us/iphone-duo/2026/9305e4b9-72d9-4c05-9381-b572adadd5e5/anim/hero/large_2x.mp4): визуальные референсы.

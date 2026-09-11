@@ -43,6 +43,31 @@ struct FoldCurveTests {
                      "closing must retain the gradual entry")
         let entry = FoldState.overlayOpacity(progress: 0.001, elapsed: 0.1)
         precondition(entry < 0.001, "small hinge movement must not pop in the snapshot")
+        var opacity60 = FoldOpacity()
+        var opacity120 = FoldOpacity()
+        opacity60.advance(toward: 1, dt: 1.0 / 60)
+        opacity120.advance(toward: 1, dt: 1.0 / 120)
+        precondition(opacity60.value == 1, "the existing entry fade must not be delayed")
+        opacity60.advance(toward: 0, dt: 1.0 / 60)
+        precondition(opacity60.value > 0.5, "fast opening must not remove the overlay in one frame")
+        opacity120.advance(toward: 0, dt: 1.0 / 120)
+        opacity120.advance(toward: 0, dt: 1.0 / 120)
+        for _ in 0..<24 {
+            precondition(abs(opacity60.value - opacity120.value) < 0.001,
+                         "revealing the live screen must take the same time at 60 and 120 Hz")
+            let previous = opacity60.value
+            opacity60.advance(toward: 0, dt: 1.0 / 60)
+            opacity120.advance(toward: 0, dt: 1.0 / 120)
+            opacity120.advance(toward: 0, dt: 1.0 / 120)
+            precondition(opacity60.value <= previous, "the ending must not flash back in")
+        }
+        precondition(opacity60.value == 0 && opacity120.value == 0,
+                     "the reveal must finish so the window and frame clock can stop")
+        opacity60.advance(toward: 0.6, dt: 1.0 / 60)
+        opacity60.advance(toward: 0.2, dt: 1.0 / 60)
+        opacity60.advance(toward: 0.9, dt: 1.0 / 60)
+        precondition(opacity60.value == 0.9, "closing again must immediately follow the current fold")
+        print("reveal passed: continuous exit, refresh-rate independence, completion, reversal")
         var at60 = FoldMotion(angle: 90)
         var at120 = FoldMotion(angle: 90)
         for _ in 0..<60 {

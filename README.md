@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/aldikosh23/Foldglass/releases/tag/v1.3.0"><img src="https://img.shields.io/badge/Download-v1.3.0-3B82F6?style=for-the-badge" alt="Download v1.3.0"></a>
+  <a href="https://github.com/aldikosh23/Foldglass/releases/tag/v1.4.0"><img src="https://img.shields.io/badge/Download-v1.4.0-3B82F6?style=for-the-badge" alt="Download v1.4.0"></a>
   <img src="https://img.shields.io/badge/macOS-14%2B-8B5CF6?style=for-the-badge" alt="macOS 14 and later">
   <img src="https://img.shields.io/badge/Apple_Silicon-Native-14B8A6?style=for-the-badge" alt="Native Apple Silicon app">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-64748B?style=for-the-badge" alt="MIT license"></a>
@@ -13,7 +13,7 @@
   <b>English</b> · <a href="docs/README.ru.md">Русский</a> · <a href="#install">Install</a> · <a href="#settings">Settings</a> · <a href="https://github.com/aldikosh23/Foldglass/issues">Report an issue</a>
 </p>
 
-Foldglass brings a glass animation to your MacBook's lid. Close it, and a soft band of blur and darkness moves from the top edge toward the hinge. The lower part stays clear and lit longer as the image stretches. Open it, and the effect reverses with the actual lid angle.
+Foldglass brings a glass animation to your MacBook's lid. As it closes, the image stretches around the hinge. Blur and shade grow gradually from the free edge while the lower part stays clear and lit longer. The image fades to black near the end of closing. Open it, and the effect reverses with the actual lid angle, then blends smoothly back into the live screen.
 
 It runs in the menu bar, supports **English and Russian**, and can start quietly when you log in. English is the default language.
 
@@ -32,7 +32,7 @@ Rendering follows the display's refresh rate, targeting **60 FPS on 60 Hz displa
 
 ## Install
 
-1. **Download and move the app.** Get [Foldglass-v1.3.0-macos-arm64.zip](https://github.com/aldikosh23/Foldglass/releases/download/v1.3.0/Foldglass-v1.3.0-macos-arm64.zip), unzip it, and move `Foldglass.app` into **Applications**.
+1. **Download and move the app.** Get [Foldglass-v1.4.0-macos-arm64.zip](https://github.com/aldikosh23/Foldglass/releases/download/v1.4.0/Foldglass-v1.4.0-macos-arm64.zip), unzip it, and move `Foldglass.app` into **Applications**.
 2. **Open Foldglass.** The app is ad hoc signed and **not notarized**. If macOS blocks it and you trust the download, use **System Settings > Privacy & Security > Open Anyway** and confirm. [Apple's guide](https://support.apple.com/en-us/102445).
 3. **Allow screen capture.** Click **Grant screen access**, then enable Foldglass in the screen recording section of Privacy & Security. Restart the app if macOS asks.
 4. **Try the lid.** Open it past **92°**, then slowly lower it below **90°**. The effect follows the movement and clears as you open the lid again.

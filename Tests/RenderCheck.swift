@@ -59,16 +59,18 @@ struct RenderCheck {
         white.fill(CGRect(x: 0, y: 0, width: 64, height: 64))
         let whiteTextures = try gpu.textures(for: white.makeImage()!)
         let halfway = try render(51, textures: whiteTextures).0
-        func brightness(at fraction: Double) -> Double {
-            let index = (Int(Double(height - 1) * fraction) * width + width / 2) * 4
-            return Double(halfway[index]) / 255
+        func brightness(_ bytes: Data, y: Double) -> Double {
+            let index = (Int(Double(height - 1) * y) * width + width / 2) * 4
+            return Double(bytes[index]) / 255
         }
-        precondition(brightness(at: 0.1) < 0.1, "the free edge should darken first")
-        precondition(brightness(at: 0.9) > 0.9, "the hinge should stay lit while the shade crosses the panel")
-        let transition = [0.4, 0.5, 0.6].map { brightness(at: $0) }
-        precondition(transition[0] > 0 && transition[2] < 1 &&
-                     transition[0] < transition[1] && transition[1] < transition[2],
-                     "the moving shade must have a broad, continuous transition")
-        print("render checks passed: identity, progressive dimming, soft top-to-hinge shade, black endpoint")
+        let freeEdge = brightness(halfway, y: 0.1)
+        precondition(freeEdge > 0.3 && freeEdge < 0.7,
+                     "the free edge should shade without disappearing halfway through the fold")
+        precondition(brightness(halfway, y: 0.9) > 0.9,
+                     "the hinge should stay lit while the free edge shades")
+        let transition = [0.1, 0.3, 0.5, 0.7, 0.9].map { brightness(halfway, y: $0) }
+        precondition(zip(transition, transition.dropFirst()).allSatisfy { $0 < $1 },
+                     "the shade must be gradual across the panel")
+        print("render checks passed: identity, gradual shading, lit hinge, black endpoint")
     }
 }

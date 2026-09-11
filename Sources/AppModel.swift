@@ -28,7 +28,14 @@ final class AppModel: ObservableObject {
         }
     }
     @Published var enabled = true { didSet { if !enabled { dismissEffect() }; wakeState.cancelOpening(); armed = false } }
-    @Published private(set) var angle: Double?
+    // The fullscreen effect covers settings. Keep reading the current angle,
+    // but avoid rebuilding the settings view for every sensor update beneath it.
+    // Publishing effectVisible on exit refreshes the displayed angle as well.
+    private(set) var angle: Double? {
+        willSet {
+            if angle != newValue && !effectVisible { objectWillChange.send() }
+        }
+    }
     @Published private(set) var sensorError: AppMessage?
     @Published private(set) var permission = CGPreflightScreenCaptureAccess()
     @Published private(set) var message: AppMessage?
@@ -60,6 +67,7 @@ final class AppModel: ObservableObject {
     private var suspended: Bool { wakeState.isSuspended }
     private var displayAngle: Double = 90
     private var motion = FoldMotion(angle: 90)
+    private var opacity = FoldOpacity()
     private var targetAngle: Double = 90
     private var lastFrame = CACurrentMediaTime()
     private var firstSubmittedFrame = 0
@@ -349,6 +357,7 @@ final class AppModel: ObservableObject {
     }
 
     private func showOverlay(on screen: NSScreen, surface: CaptureSurface) throws {
+        opacity = FoldOpacity()
         firstSubmittedFrame = overlayRenderer.submittedFrames
         if surface == .lockScreen && lockScreenSpace == nil { lockScreenSpace = try LockScreenSpace() }
         let window = OverlayWindow(contentRect: screen.frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -389,16 +398,16 @@ final class AppModel: ObservableObject {
             guard !self.suspended, self.overlaySurface == self.captureSurface else { self.dismissEffect(); return }
             let dt = min(0.05, now - self.lastFrame)
             self.lastFrame = now
+            var finished = false
             if purpose == .demo {
                 let phase = min(1, (now - start) / 6)
                 self.displayAngle = self.settings.startAngle - (self.settings.startAngle - self.settings.endAngle) * pow(sin(phase * .pi), 2)
-                if phase >= 1 { self.dismissEffect(); return }
+                finished = phase >= 1
             } else {
                 self.motion.advance(toward: self.targetAngle, dt: dt)
                 self.displayAngle = self.motion.angle
-                if self.targetAngle >= self.settings.startAngle && self.displayAngle >= self.settings.startAngle - 0.08 {
-                    self.dismissEffect(); return
-                }
+                finished = self.targetAngle >= self.settings.startAngle
+                    && self.displayAngle >= self.settings.startAngle - 0.08
             }
             let settled = purpose != .demo && abs(self.targetAngle - self.displayAngle) < 0.01
                 && abs(self.motion.velocity) < 0.1
@@ -407,10 +416,16 @@ final class AppModel: ObservableObject {
                 self.displayAngle = self.targetAngle
                 self.motion = FoldMotion(angle: self.targetAngle)
             }
-            let progress = FoldState.at(angle: self.displayAngle, settings: self.settings).progress
-            self.overlay?.alphaValue = FoldState.overlayOpacity(progress: progress, elapsed: now - start, fadeDuration: fadeDuration)
-            self.overlayRenderer.update(angle: self.displayAngle, settings: self.settings)
-            if settled { self.animation.pause() }
+            // Render identity at the open endpoint, then reveal the live screen.
+            // Session changes and cancellation still dismiss immediately.
+            let renderAngle = finished ? self.settings.startAngle : self.displayAngle
+            let progress = FoldState.at(angle: renderAngle, settings: self.settings).progress
+            let targetOpacity = FoldState.overlayOpacity(progress: progress, elapsed: now - start, fadeDuration: fadeDuration)
+            self.opacity.advance(toward: targetOpacity, dt: dt)
+            self.overlay?.alphaValue = self.opacity.value
+            if finished && self.opacity.value == 0 { self.dismissEffect(); return }
+            self.overlayRenderer.update(angle: renderAngle, settings: self.settings)
+            if settled && self.opacity.value == targetOpacity { self.animation.pause() }
         }
     }
 

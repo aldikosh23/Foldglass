@@ -1,7 +1,7 @@
 <p align="center"><img src="assets/banner.ru.svg" alt="Foldglass" width="100%"></p>
 
 <p align="center">
-  <a href="https://github.com/aldikosh23/Foldglass/releases/tag/v1.3.0"><img src="https://img.shields.io/badge/Скачать-v1.3.0-3B82F6?style=for-the-badge" alt="Скачать v1.3.0"></a>
+  <a href="https://github.com/aldikosh23/Foldglass/releases/tag/v1.4.0"><img src="https://img.shields.io/badge/Скачать-v1.4.0-3B82F6?style=for-the-badge" alt="Скачать v1.4.0"></a>
   <img src="https://img.shields.io/badge/macOS-14%2B-8B5CF6?style=for-the-badge" alt="macOS 14 и новее">
   <img src="https://img.shields.io/badge/Apple_Silicon-Native-14B8A6?style=for-the-badge" alt="Нативное приложение для Apple Silicon">
   <a href="../LICENSE"><img src="https://img.shields.io/badge/License-MIT-64748B?style=for-the-badge" alt="Лицензия MIT"></a>
@@ -11,7 +11,7 @@
   <a href="../README.md">English</a> · <b>Русский</b> · <a href="#установка">Установка</a> · <a href="#настройки">Настройки</a> · <a href="https://github.com/aldikosh23/Foldglass/issues">Сообщить о проблеме</a>
 </p>
 
-**Экран следует за крышкой.** При закрывании MacBook мягкая полоса размытия и затемнения движется от верхнего края к шарниру. Нижняя часть дольше остаётся чёткой и светлой, а изображение постепенно растягивается. При открытии движение идёт обратно, в том числе на экране блокировки после сна.
+**Экран следует за крышкой.** При закрывании MacBook изображение растягивается от шарнира. Размытие и затемнение постепенно усиливаются от свободного края; нижняя часть дольше остаётся чёткой и светлой. Экран полностью гаснет ближе к концу закрывания. При открытии движение идёт обратно, в том числе на экране блокировки после сна. В конце эффект плавно растворяется, возвращая живое изображение.
 
 Частота анимации подстраивается под дисплей: **60 FPS на экране 60 Гц** и **до 120 FPS с ProMotion**. Когда крышка останавливается, цикл анимации приостанавливается и возобновляется при движении. Размытие подготавливается один раз для каждого снимка. Режим 60 Гц измерен на MacBook Air; физическая проверка на дисплее 120 Гц пока не проводилась.
 
@@ -27,7 +27,7 @@
 
 ## Установка
 
-1. Скачайте [Foldglass-v1.3.0-macos-arm64.zip](https://github.com/aldikosh23/Foldglass/releases/download/v1.3.0/Foldglass-v1.3.0-macos-arm64.zip), распакуйте архив и перенесите `Foldglass.app` в папку **«Программы»** до первого запуска.
+1. Скачайте [Foldglass-v1.4.0-macos-arm64.zip](https://github.com/aldikosh23/Foldglass/releases/download/v1.4.0/Foldglass-v1.4.0-macos-arm64.zip), распакуйте архив и перенесите `Foldglass.app` в папку **«Программы»** до первого запуска.
 2. Откройте приложение. Сборка подписана локальной подписью **ad hoc и не прошла нотариализацию Apple**. Если macOS блокирует запуск и вы доверяете этому файлу, откройте **«Системные настройки > Конфиденциальность и безопасность > Всё равно открыть»** и подтвердите запуск. [Инструкция Apple](https://support.apple.com/ru-ru/102445).
 3. Нажмите **Grant screen access** и разрешите Foldglass запись экрана в системных настройках. Если macOS предлагает завершить и снова открыть приложение, согласитесь. Раздел может упоминать системное аудио, но Foldglass его не захватывает.
 4. В настройках приложения выберите **Language > Русский**. Выбор сохраняется и не зависит от языка macOS.

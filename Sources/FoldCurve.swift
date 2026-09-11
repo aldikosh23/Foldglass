@@ -36,6 +36,21 @@ struct FoldState {
     }
 }
 
+// Keep a fast opening from dropping the captured image in a single frame.
+// Entry follows the existing fade; only revealing the live screen is smoothed.
+struct FoldOpacity {
+    private(set) var value = 0.0
+
+    mutating func advance(toward target: Double, dt: Double) {
+        if target >= value {
+            value = target
+        } else {
+            value = target + (value - target) * exp(-dt / 0.04)
+            if value - target < 0.001 { value = target }
+        }
+    }
+}
+
 // Preserve velocity between integer-degree sensor reports, including reversals.
 // The analytic critically damped step behaves equally at 60 and 120 Hz.
 struct FoldMotion {

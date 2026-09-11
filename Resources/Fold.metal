@@ -18,19 +18,19 @@ fragment float4 foldFragment(VertexOut in [[stage_in]],
     if (u.progress < 0.00001) return float4(sharp.sample(s, in.uv).rgb, 1);
     float height = 1.0 - in.uv.y;
     float2 uv = float2(in.uv.x, 1.0 - height * u.projection);
-    // Frost travels from the free edge towards the hinge, like the moving Duo panel.
-    float local = u.progress * (0.22 + 0.78 * pow(height, 0.72));
-    float radius = pow(local, 0.72) * u.blur;
+    // A broad frost front advances from the free edge towards the hinge.
+    // The image below it stays sharp until the front reaches that part of the panel.
+    float frostAmount = smoothstep(0.0, 0.90, u.progress * 1.90 - in.uv.y);
+    float radius = pow(frostAmount, 1.25) * u.blur;
     float3 color;
     if (radius < 6.0) color = mix(sharp.sample(s, uv).rgb, soft.sample(s, uv).rgb, radius / 6.0);
     else if (radius < 18.0) color = mix(soft.sample(s, uv).rgb, medium.sample(s, uv).rgb, (radius - 6.0) / 12.0);
     else if (radius < 42.0) color = mix(medium.sample(s, uv).rgb, broad.sample(s, uv).rgb, (radius - 18.0) / 24.0);
     else color = mix(broad.sample(s, uv).rgb, frost.sample(s, uv).rgb, clamp((radius - 42.0) / 54.0, 0.0, 1.0));
-    // Keep the image lit while it stretches and frosts. Edge shading builds
-    // gently; the full fade belongs to the final part of the physical fold.
-    float dark = pow(u.progress, 1.3) * (0.12 + 0.30 * pow(height, 1.3));
-    float dim = clamp(dark * u.darkness, 0.0, 0.98);
-    float close = smoothstep(0.0, 1.0, pow(u.progress, 6.0));
-    color *= (1.0 - dim) * (1.0 - close);
+    // Darkness follows the frost across the surface, leaving the hinge lit last.
+    // Both endpoints are exact; no separate whole-screen fade is needed.
+    float shadeProgress = pow(u.progress, 1.0 / u.darkness);
+    float shade = smoothstep(0.0, 0.65, shadeProgress * 1.65 - in.uv.y);
+    color *= 1.0 - shade;
     return float4(color, 1);
 }

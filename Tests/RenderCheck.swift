@@ -16,7 +16,7 @@ struct RenderCheck {
         desc.storageMode = .shared
         desc.usage = [.renderTarget]
         let target = gpu.device.makeTexture(descriptor: desc)!
-        func render(_ angle: Double) throws -> (Data, Double) {
+        func render(_ angle: Double, textures: FoldTextures) throws -> (Data, Double) {
             let pass = MTLRenderPassDescriptor()
             pass.colorAttachments[0].texture = target
             pass.colorAttachments[0].loadAction = .clear
@@ -29,13 +29,12 @@ struct RenderCheck {
             bytes.withUnsafeMutableBytes { target.getBytes($0.baseAddress!, bytesPerRow: width * 4, from: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0) }
             return (bytes, (command.gpuEndTime - command.gpuStartTime) * 1000)
         }
-        let open = try render(90).0
-        let inactive = try render(120).0
+        let open = try render(90, textures: textures).0
+        let inactive = try render(120, textures: textures).0
         precondition(inactive == open, "open screen must be pixel identical across inactive angles")
         var previousMean = Double.infinity
-        var openMean = 0.0
-        for angle in [90.0, 75, 60, 40, 30, 12] {
-            let (bytes, ms) = try render(angle)
+        for angle in [90.0, 75, 60, 45, 30, 20, 12] {
+            let (bytes, ms) = try render(angle, textures: textures)
             let mean = bytes.withUnsafeBytes { buffer -> Double in
                 let b = buffer.bindMemory(to: UInt8.self)
                 var sum: UInt64 = 0
@@ -45,10 +44,6 @@ struct RenderCheck {
             precondition(mean < previousMean, "brightness should fall as the lid closes")
             if angle == 12 { precondition(mean == 0, "closed frame must be black") }
             if angle == 90 { precondition(mean > 30, "open frame must contain the source image") }
-            if angle == 90 { openMean = mean }
-            if angle == 30 {
-                precondition(mean > openMean * 0.6, "the folding image should stay lit until the final part of closing")
-            }
             previousMean = mean
             let provider = CGDataProvider(data: bytes as CFData)!
             let image = CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue).union(.byteOrder32Little), provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)!
@@ -56,6 +51,24 @@ struct RenderCheck {
             try png.write(to: output.appendingPathComponent("angle-\(Int(angle)).png"))
             print(String(format: "angle %.0f: mean %.2f, GPU %.3f ms", angle, mean, ms))
         }
-        print("render checks passed: identity, gradual dimming, lit folding image, black endpoint, six actual GPU frames")
+        // A uniform source isolates the moving shade from wallpaper and perspective.
+        let white = CGContext(data: nil, width: 64, height: 64, bitsPerComponent: 8,
+                              bytesPerRow: 256, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        white.setFillColor(gray: 1, alpha: 1)
+        white.fill(CGRect(x: 0, y: 0, width: 64, height: 64))
+        let whiteTextures = try gpu.textures(for: white.makeImage()!)
+        let halfway = try render(51, textures: whiteTextures).0
+        func brightness(at fraction: Double) -> Double {
+            let index = (Int(Double(height - 1) * fraction) * width + width / 2) * 4
+            return Double(halfway[index]) / 255
+        }
+        precondition(brightness(at: 0.1) < 0.1, "the free edge should darken first")
+        precondition(brightness(at: 0.9) > 0.9, "the hinge should stay lit while the shade crosses the panel")
+        let transition = [0.4, 0.5, 0.6].map { brightness(at: $0) }
+        precondition(transition[0] > 0 && transition[2] < 1 &&
+                     transition[0] < transition[1] && transition[1] < transition[2],
+                     "the moving shade must have a broad, continuous transition")
+        print("render checks passed: identity, progressive dimming, soft top-to-hinge shade, black endpoint")
     }
 }

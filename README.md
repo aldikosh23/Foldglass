@@ -13,7 +13,7 @@
   <b>English</b> · <a href="docs/README.ru.md">Русский</a> · <a href="#install">Install</a> · <a href="#settings">Settings</a> · <a href="https://github.com/aldikosh23/Foldglass/issues">Report an issue</a>
 </p>
 
-Foldglass brings a glass animation to your MacBook's lid. Close it, and the screen stretches toward the hinge, blurs from the top, and gradually fades. Open it, and the effect reverses with the actual lid angle.
+Foldglass brings a glass animation to your MacBook's lid. Close it, and a soft band of blur and darkness moves from the top edge toward the hinge. The lower part stays clear and lit longer as the image stretches. Open it, and the effect reverses with the actual lid angle.
 
 It runs in the menu bar, supports **English and Russian**, and can start quietly when you log in. English is the default language.
 
@@ -166,6 +166,7 @@ Run `./scripts/release.sh` to build a release archive and checksums. To regenera
 Foldglass is an independent visual recreation inspired by the [iPhone Duo](https://www.apple.com/iphone-duo/) and [Apple's original animation](https://www.apple.com/105/media/us/iphone-duo/2026/9305e4b9-72d9-4c05-9381-b572adadd5e5/anim/hero/large_2x.mp4). It is not an Apple product or Apple's original shader.
 
 - [Marques Brownlee's demonstration](https://www.tiktok.com/@mkbhd/video/7683665862523440398) and [Rudy's transition reference](https://www.tiktok.com/@rudy.esmlrr/video/7683627057833610528): additional motion references.
+- [Timothée Gauthier's MacBook demonstration](https://www.tiktok.com/@tim_gauthier/video/7684021769346338056): reference for the soft shade moving toward the hinge.
 - [Sam Gold's LidAngleSensor research](https://github.com/samhenrigold/LidAngleSensor): HID protocol reference. Foldglass uses its own implementation.
 - [SkyLightWindow by Lakr Aream](https://github.com/Lakr233/SkyLightWindow): basis for the private SkyLight integration, used under the MIT license. See [Third-party notices](THIRD_PARTY_NOTICES.md).
 
